@@ -1,8 +1,8 @@
 <launch>
-    <!-- <node pkg="dist_num" type="centralized.py" name="centralized_node" output="screen">
-    </node> -->
-    <node pkg="dist_num" type="publisher.py" name="publisher_node" output="screen">
+    <node pkg="dist_num" type="centralized.py" name="centralized" output="screen">
     </node>
-    <!-- <node pkg="dist_num" type="subscriber.py" name="subscriber_node" output="screen">
-    </node> -->
+    <node pkg="dist_num" type="node1.py" name="node1" output="screen">
+    </node>
+    <node pkg="dist_num" type="node2.py" name="node2" output="screen">
+    </node>
 </launch>
