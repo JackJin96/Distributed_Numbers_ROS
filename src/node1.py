@@ -28,7 +28,7 @@ class node1:
 
     def callback(self, feature):
         # print "\nNODE 1 CALLBACK:"
-        data, from_id, to_id = feature.data, feature.from_id, feature.to_id
+        data, from_id, to_id = feature.data, feature.header.frame_id, feature.to_id
         # rospy.loginfo("recieved: " + str(data))
         # rospy.loginfo("form_id: " + str(from_id))
         # rospy.loginfo("to_id: " + str(to_id))
@@ -58,11 +58,11 @@ class node1:
             if generated_int in self.handled_ints:
                 self.total_count += 1
                 self.d[generated_int] = self.d.get(generated_int, 0) + 1
-                rospy.loginfo(self.d)
+                # rospy.loginfo(self.d)
             # otherwise broadcast it in a message through rostopic
             else:
                 feature.data = generated_int
-                feature.from_id = self.node_id
+                feature.header.frame_id = str(self.node_id)
                 feature.to_id = 2
                 # rospy.loginfo("publishing: " + str(feature.data))
                 pub.publish(feature)

@@ -3,6 +3,7 @@
 import rospy
 import time
 import random
+# import cv2
 
 import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
@@ -11,6 +12,7 @@ import matplotlib.pyplot as plt
 rospy.init_node("centralized_node")
 
 print "Running centralized_node"
+print rospy.get_name()
 
 numInt = 10000
 d = {} # num: frequency
@@ -19,8 +21,7 @@ for i in range(numInt):
     rand_int = random.randint(1, 10)
     d[rand_int] = d.get(rand_int, 0) + 1
 
-for k, v in d.items():
-    print k, v
+print d
 
 # Plot bar graph
 objects = [str(k) for k in d.keys()]

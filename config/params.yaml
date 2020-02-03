@@ -1,0 +1,3 @@
+defined_matrix: [[0, 0], [5, 5], [10, 10]]
+node_ids: { 'node1': 1, 'node2': 2 }
+# keep defining parameters
