@@ -15,56 +15,65 @@ import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
 import matplotlib.pyplot as plt
 
-class node1:
+class node0:
     def __init__(self):
-        self.d = {}
-        self.handled_ints = set({1, 2, 3, 4, 5})
-        self.node_id = 1
-        self.recieved_count = 0
+        rospy.init_node('node0')
+        self.collection = [] # list of lists, each list inside is a point/vector
         self.total_count = 0
-        self.publish_rate = 500
-        self.publish_queue_size = 500
-        self.num_of_int = 5000
+        self.node_id = rospy.get_param(rospy.get_name())
+        self.matrix = rospy.get_param('defined_matrix')
+        # self.label_vector = self.matrix[self.node_id]
+        self.publish_rate = rospy.get_param('publish_rate')
+        self.publish_queue_size = rospy.get_param('publish_queue_size')
+        self.amount_generated = rospy.get_param('amount_generated')
+        self.lower_bound = rospy.get_param('lower_bound')
+        self.higher_bound = rospy.get_param('higher_bound')
+
+    # Input: two row vectors/lists of the same length
+    # Output: Euclidian distance between the two vectors
+    def dist_bet_vectors(self, v1, v2):
+        return np.sqrt(np.sum((v1[i] - v2[i]) ** 2 for i in range(len(v1))))
+
+    # Input: a randomly generated vector and a given matrix
+    # Output: index of the closest row vector in the given matrix
+    def closest_vector(self, generated_vector, matrix):
+        min_dist = res_index = float('-inf')
+        for r in range(len(matrix)):
+            dist = self.dist_bet_vectors(generated_vector, matrix[r])
+            if dist < min_dist:
+                min_dist = dist
+                res_index = r
+        return res_index
 
     def callback(self, feature):
-        # print "\nNODE 1 CALLBACK:"
         data, from_id, to_id = feature.data, feature.header.frame_id, feature.to_id
-        # rospy.loginfo("recieved: " + str(data))
-        # rospy.loginfo("form_id: " + str(from_id))
-        # rospy.loginfo("to_id: " + str(to_id))
-        # self.total_count += 1
         if to_id == self.node_id:
             self.total_count += 1
             self.d[data] = self.d.get(data, 0) + 1
-            # rospy.loginfo("current results: ")
-            # rospy.loginfo(self.d)
-        # rospy.loginfo("recieved " + str(self.recieved_count) + " messages")
-        # rospy.loginfo("total published " + str(self.total_count) + " messages")
 
     def main(self):
-        rospy.init_node('node1')
-        
         sub = rospy.Subscriber('/numbers', Feature, self.callback)
         pub = rospy.Publisher('/numbers', Feature, queue_size = self.publish_queue_size)
 
         rate = rospy.Rate(self.publish_rate)
         feature = Feature()
 
-        for i in range(self.num_of_int):
-            # generate random integer form 1 to 10
-            generated_int = random.randint(1, 10)
+        for i in range(self.amount_generated):
+            # generate random vector with set higher bound and lower bound
+            generated_vector = random.uniform(self.lower_bound, self.higher_bound)
+            belongs_to_index = self.closest_vector(generated_vector, self.matrix)
+
+            ############### continue here!!! ######################
 
             # The integer generated is in the range for the node to process itself
-            if generated_int in self.handled_ints:
+            if belongs_to_index == self.node_id:
                 self.total_count += 1
-                self.d[generated_int] = self.d.get(generated_int, 0) + 1
-                # rospy.loginfo(self.d)
+                self.collection.append(generated_vector)
             # otherwise broadcast it in a message through rostopic
             else:
                 feature.data = generated_int
                 feature.header.frame_id = str(self.node_id)
                 feature.to_id = 2
-                # rospy.loginfo("publishing: " + str(feature.data))
                 pub.publish(feature)
             rate.sleep()
         
@@ -75,7 +84,7 @@ class node1:
         print self.d
         print "**********************************************"
 
-        # Plot bar graph
+        # Plot bar graph for distribution of frequencies
         objects = [str(k) for k in self.d.keys()]
         y_pos = np.arange(len(objects))
         performance = [v for v in self.d.values()]
@@ -88,5 +97,5 @@ class node1:
         plt.show()
 
 if __name__ == '__main__':
-    n = node1()
+    n = node0()
     n.main()

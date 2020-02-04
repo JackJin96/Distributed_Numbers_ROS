@@ -19,7 +19,8 @@ class node2:
     def __init__(self):
         self.d = {}
         self.handled_ints = set({6, 7, 8, 9, 10})
-        self.node_id = 2
+        self.node_id = rospy.get_param(rospy.get_name())
+        print self.node_id
         self.recieved_count = 0
         self.total_count = 0
         self.publish_rate = 500

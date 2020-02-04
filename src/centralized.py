@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 rospy.init_node("centralized_node")
 
 print "Running centralized_node"
-print rospy.get_name()
+print rospy.get_param(rospy.get_name())
 
 numInt = 10000
 d = {} # num: frequency

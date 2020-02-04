@@ -1,3 +1,7 @@
-defined_matrix: [[0, 0], [5, 5], [10, 10]]
-node_ids: { 'node1': 1, 'node2': 2 }
-# keep defining parameters
+defined_matrix: [[0, 0], [10, 10], [20, 20]]
+node_ids: { '/node0': 0, '/node1': 1, '/node2': 2 }
+publish_rate: 500
+publish_queue_size: 500
+amount_generated: 100
+lower_bound: -5
+higher_cound: 25
