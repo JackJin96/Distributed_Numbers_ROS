@@ -15,6 +15,7 @@ from dist_num.msg import Feature # pylint: disable = import-error
 import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 
 class node0:
     def __init__(self):
@@ -93,17 +94,20 @@ class node0:
         print self.collection
         print "**********************************************"
 
-        # Plot bar graph for distribution of frequencies
-        # objects = [str(k) for k in self.d.keys()]
-        # y_pos = np.arange(len(objects))
-        # performance = [v for v in self.d.values()]
-
-        # plt.bar(y_pos, performance, align='center', alpha=0.5)
-        # plt.xticks(y_pos, objects)
-        # plt.ylabel('Frequency')
-        # plt.title('Frequency of random numbers [Node 1]')
-
-        # plt.show()
+        # Plot scattered points graph for distribution
+        na = np.array(self.collection)
+        fig, ax = plt.subplots()
+        ax.scatter(na[:, 0], na[:, 1], c='blue')
+        for i in range(len(self.matrix)):
+            ax.scatter(self.matrix[i][0], self.matrix[i][1], c="red")
+        line1 = mlines.Line2D([-5, 15], [15, -5])
+        line2 = mlines.Line2D([30, 0], [0, 30])
+        ax.add_line(line1)
+        ax.add_line(line2)
+        plt.xlim(self.lower_bound, self.higher_bound)
+        plt.ylim(self.lower_bound, self.higher_bound)
+        plt.title('node ' + str(self.node_id) + ', count: ' + str(self.total_count))
+        plt.show()
 
 if __name__ == '__main__':
     n = node0()
