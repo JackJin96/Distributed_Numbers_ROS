@@ -48,6 +48,17 @@ class node0:
                 res_index = r
         return res_index
 
+    # Input: two points, lower bounds for x and y
+    # Output: two points on perpendicular bisector
+    def points_to_plot(self, x1, y1, x2, y2, x_lower, y_lower):
+        x_mid, y_mid = (x1 + x2) / 2, (y1 + y2) / 2
+        k = (y2 - y1) / (x2 - x1)
+        k_perp = -1 / k
+        b_perp = y_mid - k_perp * x_mid
+        y_xlower = k_perp * x_lower + b_perp
+        x_ylower = (y_lower - b_perp) / k_perp
+        return [x_lower, y_xlower], [x_ylower, y_lower]
+
     def callback(self, feature):
         data, from_id, to_id = feature.data, feature.header.frame_id, feature.to_id
         if to_id == self.node_id:
@@ -99,11 +110,14 @@ class node0:
         fig, ax = plt.subplots()
         ax.scatter(na[:, 0], na[:, 1], c='blue')
         for i in range(len(self.matrix)):
-            ax.scatter(self.matrix[i][0], self.matrix[i][1], c="red")
-        line1 = mlines.Line2D([-5, 15], [15, -5])
-        line2 = mlines.Line2D([30, 0], [0, 30])
-        ax.add_line(line1)
-        ax.add_line(line2)
+            x, y = self.matrix[i][0], self.matrix[i][1]
+            ax.scatter(x, y, c="red")
+            if i < len(self.matrix) - 1:
+                x_next, y_next = self.matrix[i + 1][0], self.matrix[i + 1][1]
+                point1, point2 = self.points_to_plot(x, y, x_next, y_next, self.lower_bound, self.lower_bound)
+                print point1, point2
+                line = mlines.Line2D(point1, point2)
+                ax.add_line(line)
         plt.xlim(self.lower_bound, self.higher_bound)
         plt.ylim(self.lower_bound, self.higher_bound)
         plt.title('node ' + str(self.node_id) + ', count: ' + str(self.total_count))
