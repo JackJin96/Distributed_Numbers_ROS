@@ -1,4 +1,4 @@
-defined_matrix: [[0, 0], [10, 10], [20, 20]]
+defined_matrix: [[5, 0], [10, 0], [20, 0]]
 node_ids: { '/node0': 0, '/node1': 1, '/node2': 2 }
 publish_rate: 10
 publish_queue_size: 10

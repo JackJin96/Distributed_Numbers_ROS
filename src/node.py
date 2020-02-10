@@ -17,9 +17,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 
-class node0:
+class Node:
     def __init__(self):
-        rospy.init_node('node0')
+        rospy.init_node('Node')
         self.collection = [] # list of lists, each list inside is a point/vector
         self.total_count = 0
         self.node_id = rospy.get_param(rospy.get_name())
@@ -31,14 +31,18 @@ class node0:
         self.lower_bound = rospy.get_param('lower_bound')
         self.higher_bound = rospy.get_param('higher_bound')
 
-    # Input: two row vectors/lists of the same length
-    # Output: Euclidian distance between the two vectors
     def dist_bet_vectors(self, v1, v2):
+        '''
+        Input: two row vectors/lists of the same length
+        Output: Euclidian distance between the two vectors
+        '''
         return np.sqrt(np.sum((v1[i] - v2[i]) ** 2 for i in range(len(v1))))
 
-    # Input: a randomly generated vector and a given matrix
-    # Output: index of the closest row vector in the given matrix
     def closest_vector(self, generated_vector, matrix):
+        '''
+        Input: a randomly generated vector and a given matrix
+        Output: index of the closest row vector in the given matrix
+        '''
         min_dist = float('inf')
         res_index = -sys.maxint - 1
         for r in range(len(matrix)):
@@ -48,16 +52,23 @@ class node0:
                 res_index = r
         return res_index
 
-    # Input: two points, lower bounds for x and y
-    # Output: two points on perpendicular bisector
-    def points_to_plot(self, x1, y1, x2, y2, x_lower, y_lower):
-        x_mid, y_mid = (x1 + x2) / 2, (y1 + y2) / 2
-        k = (y2 - y1) / (x2 - x1)
-        k_perp = -1 / k
-        b_perp = y_mid - k_perp * x_mid
-        y_xlower = k_perp * x_lower + b_perp
-        x_ylower = (y_lower - b_perp) / k_perp
-        return [x_lower, y_xlower], [x_ylower, y_lower]
+    def points_to_plot(self, x1, y1, x2, y2, x_lower, y_lower, x_higher, y_higher):
+        '''
+        Input: two points, lower bounds for x and y
+        Output: two points on perpendicular bisector
+        '''
+        x_mid, y_mid = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        if y1 == y2:
+            return [x_mid, x_mid], [y_lower, y_higher]
+        elif x1 == x2:
+            return [x_lower, x_higher], [y_mid, y_mid]
+        else:
+            k = (y2 - y1) / (x2 - x1)
+            k_perp = -1.0 / k
+            b_perp = y_mid - k_perp * x_mid
+            y_xlower = k_perp * x_lower + b_perp
+            x_ylower = (y_lower - b_perp) / k_perp
+            return [x_lower, x_ylower], [y_xlower, y_lower]
 
     def callback(self, feature):
         data, from_id, to_id = feature.data, feature.header.frame_id, feature.to_id
@@ -114,9 +125,11 @@ class node0:
             ax.scatter(x, y, c="red")
             if i < len(self.matrix) - 1:
                 x_next, y_next = self.matrix[i + 1][0], self.matrix[i + 1][1]
-                point1, point2 = self.points_to_plot(x, y, x_next, y_next, self.lower_bound, self.lower_bound)
-                print point1, point2
-                line = mlines.Line2D(point1, point2)
+                xs, ys = self.points_to_plot(x, y, x_next, y_next, 
+                                            self.lower_bound, self.lower_bound,
+                                            self.higher_bound, self.higher_bound)
+                print xs, ys
+                line = mlines.Line2D(xs, ys)
                 ax.add_line(line)
         plt.xlim(self.lower_bound, self.higher_bound)
         plt.ylim(self.lower_bound, self.higher_bound)
@@ -124,5 +137,5 @@ class node0:
         plt.show()
 
 if __name__ == '__main__':
-    n = node0()
+    n = Node()
     n.main()
