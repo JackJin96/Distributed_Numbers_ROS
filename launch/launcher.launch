@@ -2,7 +2,7 @@
     <rosparam command="load" file="$(find dist_num)/config/params.yaml"/>
     <!-- <node pkg="dist_num" type="centralized.py" name="centralized" output="screen" /> -->
     <node pkg="dist_num" type="node.py" name="node0" output="screen" />
-    <node pkg="dist_num" type="node.py" name="node1" output="screen" />
-    <node pkg="dist_num" type="node.py" name="node2" output="screen" />
+    <!-- <node pkg="dist_num" type="node.py" name="node1" output="screen" />
+    <node pkg="dist_num" type="node.py" name="node2" output="screen" /> -->
     <!-- <node pkg="dist_num" type="node2.py" name="node2" output="screen" /> -->
 </launch>

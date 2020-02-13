@@ -1,13 +1,11 @@
 #! /usr/bin/python
 
-'''
-Node 1 handles numbers from 1 to 5
-'''
-
 import time
 import rospy
 import random
 import sys
+import cv2
+import glob
 
 from std_msgs.msg import Int64
 from dist_num.msg import Feature # pylint: disable = import-error
@@ -16,6 +14,12 @@ import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import os.path as path
+
+class Empty_struc:
+    def __init__(self):
+        self.images = None
+        self.data = None
 
 class Node:
     def __init__(self):
@@ -23,62 +27,18 @@ class Node:
         self.collection = [] # list of lists, each list inside is a point/vector
         self.total_count = 0
         self.node_id = rospy.get_param(rospy.get_name())
-        self.matrix = rospy.get_param('defined_matrix')
-        # self.label_vector = self.matrix[self.node_id]
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
-        self.amount_generated = rospy.get_param('amount_generated')
-        self.lower_bound = rospy.get_param('lower_bound')
-        self.higher_bound = rospy.get_param('higher_bound')
-
-    def dist_bet_vectors(self, v1, v2):
-        '''
-        Input: two row vectors/lists of the same length
-        Output: Euclidian distance between the two vectors
-        '''
-        return np.sqrt(np.sum((v1[i] - v2[i]) ** 2 for i in range(len(v1))))
-
-    def closest_vector(self, generated_vector, matrix):
-        '''
-        Input: a randomly generated vector and a given matrix
-        Output: index of the closest row vector in the given matrix
-        '''
-        min_dist = float('inf')
-        res_index = -sys.maxint - 1
-        for r in range(len(matrix)):
-            dist = self.dist_bet_vectors(generated_vector, matrix[r])
-            if dist < min_dist:
-                min_dist = dist
-                res_index = r
-        return res_index
-
-    def points_to_plot(self, x1, y1, x2, y2, x_lower, y_lower, x_higher, y_higher):
-        '''
-        Input: two points, lower bounds for x and y
-        Output: two points on perpendicular bisector
-        '''
-        x_mid, y_mid = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-        if y1 == y2:
-            return [x_mid, x_mid], [y_lower, y_higher]
-        elif x1 == x2:
-            return [x_lower, x_higher], [y_mid, y_mid]
-        else:
-            k = (y2 - y1) / (x2 - x1)
-            k_perp = -1.0 / k
-            b_perp = y_mid - k_perp * x_mid
-            y_xlower = k_perp * x_lower + b_perp
-            x_ylower = (y_lower - b_perp) / k_perp
-            return [x_lower, x_ylower], [y_xlower, y_lower]
 
     def callback(self, feature):
-        data, from_id, to_id = feature.data, feature.header.frame_id, feature.to_id
-        if to_id == self.node_id:
-            self.total_count += 1
-            self.collection.append(list(data))
+        data, data_length = feature.data, feature.data_length
+        from_id, to_id = feature.header.frame_id, feature.to_id
+        data_reshaped = data.reshape(-1, data_length)
+        print data_reshaped.shape
 
     def main(self):
-        sub = rospy.Subscriber('/numbers', Feature, self.callback)
-        pub = rospy.Publisher('/numbers', Feature, queue_size = self.publish_queue_size)
+        sub = rospy.Subscriber('/features', Feature, self.callback)
+        pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
 
         rate = rospy.Rate(self.publish_rate)
         feature = Feature()
@@ -88,53 +48,92 @@ class Node:
         # number of lost messages = number of nodes initialized
         time.sleep(1)
 
-        for i in range(self.amount_generated):
-            # generate random vector with set higher bound and lower bound
-            generated_vector = [random.uniform(self.lower_bound, self.higher_bound), random.uniform(self.lower_bound, self.higher_bound)]
-            belongs_to_index = self.closest_vector(generated_vector, self.matrix)
-            print 'generated vector:'
-            print generated_vector
-            print 'belongs to index:'
-            print belongs_to_index
+        #Initialization of Important Constants and Features data structure
+        threshold = .75
+        method = 'SIFT' #Can use 'SIFT','ORB', or 'SURF'
 
-            # The integer generated is in the range for the node to process itself
-            if belongs_to_index == self.node_id:
-                self.total_count += 1
-                self.collection.append(generated_vector)
-            # otherwise broadcast it in a message through rostopic
-            else:
-                feature.data = generated_vector
-                feature.header.frame_id = str(self.node_id)
-                feature.to_id = belongs_to_index
-                pub.publish(feature)
-            rate.sleep()
-        
-        print "**********************************************"
-        print rospy.get_name() + " FINAL RESULT: "
-        print "Total numbers processed: " + str(self.total_count)
-        print "(number: frequency)"
-        print self.collection
-        print "**********************************************"
+        #Choose file path for main images
+        dirname = path.abspath(path.join(__file__, "../.."))
+        images_file_path = dirname + '/test_images/*.%s'
 
-        # Plot scattered points graph for distribution
-        na = np.array(self.collection)
-        fig, ax = plt.subplots()
-        ax.scatter(na[:, 0], na[:, 1], c='blue')
-        for i in range(len(self.matrix)):
-            x, y = self.matrix[i][0], self.matrix[i][1]
-            ax.scatter(x, y, c="red")
-            if i < len(self.matrix) - 1:
-                x_next, y_next = self.matrix[i + 1][0], self.matrix[i + 1][1]
-                xs, ys = self.points_to_plot(x, y, x_next, y_next, 
-                                            self.lower_bound, self.lower_bound,
-                                            self.higher_bound, self.higher_bound)
-                print xs, ys
-                line = mlines.Line2D(xs, ys)
-                ax.add_line(line)
-        plt.xlim(self.lower_bound, self.higher_bound)
-        plt.ylim(self.lower_bound, self.higher_bound)
-        plt.title('node ' + str(self.node_id) + ', count: ' + str(self.total_count))
-        plt.show()
+        #Build main data structure
+        features = Empty_struc()
+
+        #Import Data into [dxn] numpy array
+        features = self.get_imgs_data(features, method, images_file_path)
+        features.num_img = len(features.images)
+
+        #This is the length and dimension of the feature vector
+        features.size = features.data.shape
+        print('Number and Size of Features')
+        print(features.size)
+
+        data_flattened = features.data.flatten()
+        print data_flattened.shape
+
+        '''
+        CALL BACK FINISHED, START PUBLISHING MESSAGES!
+        '''
+
+    # Import car images and run Sift to get dataset
+    def get_imgs_data(self, features, method, path):
+
+        # Initalize data structures
+        if method == 'SIFT':
+            features.data = np.empty((1,128), dtype = np.float64)
+            features.data_length = 128
+            sift = cv2.xfeatures2d.SIFT_create(500, 3, 0.1, 5, 1.6)
+        if method == 'ORB':
+            features.data = np.empty((1,32), dtype = np.float64)
+            features.data_length = 32
+            orb = cv2.ORB_create()
+        if method == 'SURF':
+            features.data = np.empty((1,64), dtype = np.float64)
+            features.data_length = 64
+            surf = cv2.xfeatures2d.SURF_create(400)
+
+        first = 0
+        features.keypoints = np.empty((1,2), dtype = object)
+        features.member = np.empty((1), dtype = int)
+
+        # Get raw image files
+        image_list = [cv2.imread(item) for i in [sorted(glob.glob(path % ext)) for ext in ["jpg", "gif", "png", "tga"]] for item in i]
+
+        features.images = image_list
+
+        # For each image, extract sift features and organize them into right structures
+        for i in range(0, len(features.images)):
+            gray= cv2.cvtColor(features.images[i], cv2.COLOR_BGR2GRAY)
+            if method == 'SURF':
+                kp, des = surf.detectAndCompute(gray, None)
+            if method == 'SIFT':
+                kp, des = sift.detectAndCompute(gray, None)
+            if method == 'ORB':
+                kp, des = orb.detectAndCompute(gray, None)
+            keypts = [p.pt for p in kp]
+            member = np.ones(len(keypts)) * i
+            # add features to data structures
+            if first > 0:
+                features.kpts = np.hstack((features.kpts, kp))
+                features.desc = np.vstack((features.desc, des))
+                features.keypoints = np.concatenate((features.keypoints, keypts), axis=0)
+                features.data = np.concatenate((features.data, des), axis=0)
+                features.member = np.concatenate((features.member, member), axis=0)
+            if first == 0:
+                features.kpts = kp
+                features.desc = des
+                features.keypoints = np.concatenate((features.keypoints, keypts), axis=0)
+                features.data = np.concatenate((features.data, des), axis=0)
+                features.member = np.concatenate((features.member, member), axis=0)
+                first = 1
+
+        # Delete first empty artifact from stucture def
+        features.keypoints = np.delete(features.keypoints, 0, axis=0)
+        features.data = np.delete(features.data, 0, axis=0)
+        features.data = np.random.normal(features.data, 0.001)
+        features.member = np.delete(features.member, 0)
+
+        return features
 
 if __name__ == '__main__':
     n = Node()
