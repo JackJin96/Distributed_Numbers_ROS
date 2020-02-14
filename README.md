@@ -15,6 +15,14 @@
   - Node1: [10, 10]
   - Node2: [20, 20]
 
+## Third Version: Distrubuted Features
+
+Currently, the node:
+
+- Extract features from images
+  - Keep features of images that are supposed to be handled by itself
+  - Publish features of images that are supposed to be handled by other nodes
+
 ## How to create custom messages in ROS
 
 http://wiki.ros.org/ROS/Tutorials/CreatingMsgAndSrv#Creating_a_msg
