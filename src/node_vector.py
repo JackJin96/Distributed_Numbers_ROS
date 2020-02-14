@@ -22,7 +22,7 @@ class Node:
         rospy.init_node('Node')
         self.collection = [] # list of lists, each list inside is a point/vector
         self.total_count = 0
-        self.node_id = rospy.get_param(rospy.get_name())
+        self.node_id = rospy.get_param('node_ids' + rospy.get_name())
         self.matrix = rospy.get_param('defined_matrix')
         # self.label_vector = self.matrix[self.node_id]
         self.publish_rate = rospy.get_param('publish_rate')

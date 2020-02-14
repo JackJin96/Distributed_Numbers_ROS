@@ -1,5 +1,12 @@
 defined_matrix: [[10, 0], [10, 5], [10, 20]]
-node_ids: { '/node0': 0, '/node1': 1, '/node2': 2 }
+node_ids: 
+  node0: 0
+  node1: 1
+  node2: 2
+to_ids: 
+  node0: 1 
+  node1: 2
+  node2: 0
 publish_rate: 10
 publish_queue_size: 10
 amount_generated: 30

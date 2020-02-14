@@ -27,18 +27,19 @@ class Node:
         rospy.init_node('Node')
         self.features = []
         self.total_count = 0
-        self.node_id = rospy.get_param(rospy.get_name())
+        self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
 
     def callback(self, feature):
         data, data_length = np.array(feature.data), feature.data_length
         from_id, to_id = feature.header.frame_id, feature.to_id
-        data_reshaped = data.reshape(-1, data_length)
-        print '\n IN CALLBACK \n'
-        print 'reshaped data size: '
-        print data_reshaped.shape
-        print '\n END CALLBACK \n'
+        if to_id == self.node_id:
+            data_reshaped = data.reshape(-1, data_length)
+            print '\n IN CALLBACK NODE ' + str(self.node_id) + '\n'
+            print 'reshaped data size: '
+            print data_reshaped.shape
+            print '\n END CALLBACK \n'
 
     def main(self):
         sub = rospy.Subscriber('/features', Feature, self.callback)
@@ -69,14 +70,14 @@ class Node:
         for filepaths in [sorted(glob.glob(images_file_path % ext)) for ext in ["jpg", "gif", "png", "tga"]]:
             for filepath in filepaths:
                 image_num = int(filepath[57:-4])
-                if  image_num == 2 * self.node_id or image_num == 2 * self.node_id + 1:
+                if  image_num == 2 * self.node_id + 1 or image_num == 2 * self.node_id + 2:
                     image_list.append(cv2.imread(filepath))
                 else:
                     image_list_other.append(cv2.imread(filepath))
 
         ################### Extract features for images handled by other nodes ###################
 
-        print '\nExtracting features for images handled by other nodes'
+        # print '\nExtracting features for images handled by other nodes'
 
         #Import Data into [dxn] numpy array
         features = self.get_imgs_data(features, method, image_list_other)
@@ -84,22 +85,23 @@ class Node:
 
         #This is the length and dimension of the feature vector
         features.size = features.data.shape
-        print('Number and Size of Features')
-        print(features.size)
+        # print('Number and Size of Features')
+        # print(features.size)
 
         # Flatten the features to 1d vectors
         data_flattened = features.data.flatten()
-        print 'data_flattened shape'
-        print data_flattened.shape
+        # print 'data_flattened shape'
+        # print data_flattened.shape
 
         # publish the flattened features
         feature.data = data_flattened
         feature.data_length = features.data_length
+        feature.to_id = rospy.get_param('/to_ids' + rospy.get_name())
         pub.publish(feature)
 
         ################### REPEAT for images handled by this node ###################
 
-        print '\nExtracting features for images handled by this node'
+        # print '\nExtracting features for images handled by this node'
 
         #Import Data into [dxn] numpy array
         features = self.get_imgs_data(features, method, image_list)
@@ -107,13 +109,8 @@ class Node:
 
         #This is the length and dimension of the feature vector
         features.size = features.data.shape
-        print('Number and Size of Features')
+        print('\nNumber and Size of Features (Node ' + str(self.node_id) + ')')
         print(features.size)
-
-        data_flattened = features.data.flatten()
-        print 'data_flattened shape'
-        print data_flattened.shape
-
 
     # Import car images and run Sift to get dataset
     def get_imgs_data(self, features, method, image_list):
@@ -172,11 +169,6 @@ class Node:
         features.data = np.delete(features.data, 0, axis=0)
         features.data = np.random.normal(features.data, 0.001)
         features.member = np.delete(features.member, 0)
-
-        # print 'INSIDE FUNCTION:\n datashape, keypoints shape, member shape:'
-        # print features.data.shape
-        # print features.keypoints.shape
-        # print features.member.shape
 
         return features
 
