@@ -91,6 +91,7 @@ class Node:
         for i in range(self.amount_generated):
             # generate random vector with set higher bound and lower bound
             generated_vector = [random.uniform(self.lower_bound, self.higher_bound), random.uniform(self.lower_bound, self.higher_bound)]
+            # get_image_features(my_images)
             belongs_to_index = self.closest_vector(generated_vector, self.matrix)
             print 'generated vector:'
             print generated_vector

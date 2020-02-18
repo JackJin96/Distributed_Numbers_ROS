@@ -27,6 +27,7 @@ class Node:
         rospy.init_node('Node')
         self.features = []
         self.total_count = 0
+        # self.label_matrix = 
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
@@ -80,13 +81,17 @@ class Node:
         # print '\nExtracting features for images handled by other nodes'
 
         #Import Data into [dxn] numpy array
-        features = self.get_imgs_data(features, method, image_list_other)
+        features = self.extract_features(features, method, image_list_other)
         features.num_img = len(features.images)
 
         #This is the length and dimension of the feature vector
         features.size = features.data.shape
         # print('Number and Size of Features')
         # print(features.size)
+
+        '''
+            ki = 128/N*i
+        '''
 
         # Flatten the features to 1d vectors
         data_flattened = features.data.flatten()
@@ -98,22 +103,26 @@ class Node:
         feature.data_length = features.data_length
         feature.to_id = rospy.get_param('/to_ids' + rospy.get_name())
         pub.publish(feature)
+        print '\nmin = ' + str(features.data.min())
+        print '\nmax = ' + str(features.data.max())
 
         ################### REPEAT for images handled by this node ###################
 
         # print '\nExtracting features for images handled by this node'
 
         #Import Data into [dxn] numpy array
-        features = self.get_imgs_data(features, method, image_list)
+        features = self.extract_features(features, method, image_list)
         features.num_img = len(features.images)
 
         #This is the length and dimension of the feature vector
         features.size = features.data.shape
-        print('\nNumber and Size of Features (Node ' + str(self.node_id) + ')')
-        print(features.size)
+        print '\nNumber and Size of Features (Node ' + str(self.node_id) + ')'
+        print features.size
+        print '\nmin = ' + str(features.data.min())
+        print '\nmax = ' + str(features.data.max())
 
     # Import car images and run Sift to get dataset
-    def get_imgs_data(self, features, method, image_list):
+    def extract_features(self, features, method, image_list):
 
         # Initalize data structures
         if method == 'SIFT':
