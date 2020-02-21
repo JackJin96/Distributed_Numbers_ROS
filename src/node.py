@@ -32,25 +32,17 @@ class Node:
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
         self.feature_method = rospy.get_param('feature_extration_method')
-        if self.feature_method == 'SIFT':
-            self.features = np.random.rand(3, 128) * 255
-        elif self.feature_method == 'ORB':
-            # check if ORB feature value is from 0 to 32
-            self.features = np.random.rand(3, 32) * 32
-        elif self.feature_method == 'SURF':
-            # check if SURF feature value is from 0 to 32
-            self.features = np.random.rand(3, 64) * 32
-        else:
-            raise Exception('Feature extraction method not supported.')
+        self.label_matrix = rospy.get_param('label_matrix')
+        self.feature_label = self.label_matrix[self.node_id]
 
     def callback(self, feature):
         data, data_length = np.array(feature.data), feature.data_length
         from_id, to_id = feature.header.frame_id, feature.to_id
         if to_id == self.node_id:
-            data_reshaped = data.reshape(-1, data_length)
+            self.total_count += 1
+            self.features.append(data)
             print '\n IN CALLBACK NODE ' + str(self.node_id) + '\n'
-            print 'reshaped data size: '
-            print data_reshaped.shape
+            print 'DATA recieved! Total count: ' + str(self.total_count)
             print '\n END CALLBACK \n'
 
     def main(self):
@@ -58,7 +50,6 @@ class Node:
         pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
 
         rate = rospy.Rate(self.publish_rate)
-        feature = Feature()
 
         # pausing for 1 second before start can ensure the first messages are not lost
         # otherwise the first messages are lost
@@ -67,8 +58,7 @@ class Node:
 
         #Initialization of Important Constants and Features data structure
         threshold = .75
-        self.feature_method = 'SIFT' #Can use 'SIFT','ORB', or 'SURF'
-
+        
         #Choose file path for main images
         dirname = path.abspath(path.join(__file__, "../.."))
         images_file_path = dirname + '/test_images/*.%s'
@@ -84,31 +74,41 @@ class Node:
                 if  image_num == 2 * self.node_id + 1 or image_num == 2 * self.node_id + 2:
                     image_list.append(cv2.imread(filepath))
 
-        data_flattened = features.data.flatten()
-
-        # publish the flattened features
-        feature.data = data_flattened
-        feature.data_length = features.data_length
-        feature.to_id = rospy.get_param('/to_ids' + rospy.get_name())
-        pub.publish(feature)
-
         #Import Data into [dxn] numpy array
         features = self.extract_features(features, image_list)
         features.num_img = len(features.images)
 
         #Compute distance between each feature to all the feature labels
+        D = distance_matrix(features.data, self.label_matrix)
 
         #Find the minimum distance and corresponding label
+        min_labels = []
+        cluster_numbers = []
+        for row in D:
+            min_labels.append(self.label_matrix[np.argmin(row)])
+            cluster_numbers.append(np.argmin(row))
 
-        #For each feature that doesn't belong to this node's label,
-        #publish the feature to other corresponding node
+        #For each label in the minimum labels found
+        for i in range(len(min_labels)):
+            cur_label = min_labels[i]
+            # if it matches the label for this node
+            if cur_label == self.feature_label:
+                # add it to the node's feature collection
+                self.features.append(features.data[i])
+            else: # if it belongs to other nodes
+                # publish it
+                feature_pub = Feature()
+                feature_pub.data = features.data[i]
+                feature_pub.to_id = cluster_numbers[i]
+                pub.publish(feature_pub)
+            rate.sleep()
 
         #This is the length and dimension of the feature vector
-        features.size = features.data.shape
-        print '\nNumber and Size of Features (Node ' + str(self.node_id) + ')'
-        print features.size
-        print '\nmin = ' + str(features.data.min())
-        print '\nmax = ' + str(features.data.max())
+        # features.size = features.data.shape
+        # print '\nNumber and Size of Features (Node ' + str(self.node_id) + ')'
+        # print features.size
+        # print '\nmin = ' + str(features.data.min())
+        # print '\nmax = ' + str(features.data.max())
 
     # Import car images and run Sift to get dataset
     def extract_features(self, features, image_list):
