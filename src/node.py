@@ -19,9 +19,9 @@ import os.path as path
 
 class Empty_struc:
     def __init__(self):
-        self.images = None
-        self.data = None
-        self.data_length = None
+        self.images = []
+        self.data = []
+        self.data_length = 0
 
 class Node:
     def __init__(self):
@@ -36,34 +36,38 @@ class Node:
         self.feature_label = self.label_matrix[self.node_id]
 
     def callback(self, feature):
-        data, data_length = np.array(feature.data), feature.data_length
+        data = np.array(feature.data)
         from_id, to_id = feature.header.frame_id, feature.to_id
         if to_id == self.node_id:
-            self.total_count += 1
-            self.features.append(data)
+            data = np.reshape(data, (-1, 128))
+            self.total_count += len(data)
+            for f in data:
+                self.features.append(f)
             print '\n IN CALLBACK NODE ' + str(self.node_id) + '\n'
-            print 'DATA recieved! Total count: ' + str(self.total_count)
+            print 'DATA recieved! Total recieved: ' + str(self.total_count)
+            print 'Self contains: ' + str(len(self.features))
             print '\n END CALLBACK \n'
 
     def main(self):
-        sub = rospy.Subscriber('/features', Feature, self.callback)
-        pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
-
-        rate = rospy.Rate(self.publish_rate)
 
         # pausing for 1 second before start can ensure the first messages are not lost
         # otherwise the first messages are lost
         # number of lost messages = number of nodes initialized
         time.sleep(1)
 
+        sub = rospy.Subscriber('/features', Feature, self.callback)
+        pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
+
+        rate = rospy.Rate(self.publish_rate)
+
         #Initialization of Important Constants and Features data structure
         threshold = .75
         
-        #Choose file path for main images
+        # Choose file path for main images
         dirname = path.abspath(path.join(__file__, "../.."))
         images_file_path = dirname + '/test_images/*.%s'
 
-        #Build main data structure
+        # Build main data structure
         features = Empty_struc()
 
         # Get raw image files based on node_id
@@ -74,41 +78,42 @@ class Node:
                 if  image_num == 2 * self.node_id + 1 or image_num == 2 * self.node_id + 2:
                     image_list.append(cv2.imread(filepath))
 
-        #Import Data into [dxn] numpy array
-        features = self.extract_features(features, image_list)
-        features.num_img = len(features.images)
+        # For each image
+        for image in image_list:
+            # temporarily store the features to publish
+            publish_store = {}  # to_node_id: [features]
+            
+            # Import Data into [dxn] numpy array
+            features = self.extract_features(features, [image])
 
-        #Compute distance between each feature to all the feature labels
-        D = distance_matrix(features.data, self.label_matrix)
+            # Compute distance between each feature to all the feature labels
+            D = distance_matrix(features.data, self.label_matrix)
 
-        #Find the minimum distance and corresponding label
-        min_labels = []
-        cluster_numbers = []
-        for row in D:
-            min_labels.append(self.label_matrix[np.argmin(row)])
-            cluster_numbers.append(np.argmin(row))
+            # Find the minimum distance and corresponding cluster number
+            cluster_numbers = []
+            for row in D:
+                cluster_numbers.append(np.argmin(row))
 
-        #For each label in the minimum labels found
-        for i in range(len(min_labels)):
-            cur_label = min_labels[i]
-            # if it matches the label for this node
-            if cur_label == self.feature_label:
-                # add it to the node's feature collection
-                self.features.append(features.data[i])
-            else: # if it belongs to other nodes
-                # publish it
-                feature_pub = Feature()
-                feature_pub.data = features.data[i]
-                feature_pub.to_id = cluster_numbers[i]
-                pub.publish(feature_pub)
+            # For each cluster number in all the cluster numbers
+            for i in range(len(cluster_numbers)):
+                cur_cluster = cluster_numbers[i]
+                # if it matches the label for this node
+                if cur_cluster == self.node_id:
+                    # add it to the node's feature collection
+                    self.features.append(features.data[i])
+                else: 
+                    # if it belongs to other nodes, add it to publish_store
+                    publish_store.setdefault(cur_cluster, [])
+                    publish_store[cur_cluster].append(features.data[i])
+
+            # Go through publish_store and publish all the features
+            for to_node_id, pub_features in publish_store.items():
+                msg = Feature()
+                msg.data = np.array(pub_features).flatten()
+                msg.to_id = to_node_id
+                pub.publish(msg)
+            
             rate.sleep()
-
-        #This is the length and dimension of the feature vector
-        # features.size = features.data.shape
-        # print '\nNumber and Size of Features (Node ' + str(self.node_id) + ')'
-        # print features.size
-        # print '\nmin = ' + str(features.data.min())
-        # print '\nmax = ' + str(features.data.max())
 
     # Import car images and run Sift to get dataset
     def extract_features(self, features, image_list):
