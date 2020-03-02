@@ -1,7 +1,7 @@
 import yaml
 import numpy as np
 
-new_label_matrix = np.random.rand(3, 128)
+new_label_matrix = np.random.rand(3, 128) * 255
 
 with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','r') as yamlfile:
     cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load

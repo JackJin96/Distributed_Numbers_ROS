@@ -10,6 +10,7 @@ import glob
 from std_msgs.msg import Int64
 from dist_num.msg import Feature # pylint: disable = import-error
 from scipy.spatial import distance_matrix
+from scipy.cluster import vq as clusteralgos
 
 import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
@@ -26,8 +27,9 @@ class Empty_struc:
 class Node:
     def __init__(self):
         rospy.init_node('Node')
-        self.features = []
+        self.collected_features = []
         self.total_count = 0
+        # self.first_image = True
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
@@ -42,10 +44,12 @@ class Node:
             data = np.reshape(data, (-1, 128))
             self.total_count += len(data)
             for f in data:
-                self.features.append(f)
+                self.collected_features.append(f)
+            # cluster_centers = clusteralgos.kmeans2(self.collected_features, 3)
             print '\n IN CALLBACK NODE ' + str(self.node_id) + '\n'
-            print 'DATA recieved! Total recieved: ' + str(self.total_count)
-            print 'Self contains: ' + str(len(self.features))
+            print 'DATA recieved! Node' + str(self.node_id) + ' Total recieved: ' + str(self.total_count)
+            print 'Self contains: ' + str(len(self.collected_features))
+            # print cluster_centers
             print '\n END CALLBACK \n'
 
     def main(self):
@@ -78,6 +82,7 @@ class Node:
                 if  image_num == 2 * self.node_id + 1 or image_num == 2 * self.node_id + 2:
                     image_list.append(cv2.imread(filepath))
 
+        num_features_extracted = 0
         # For each image
         for image in image_list:
             # temporarily store the features to publish
@@ -85,14 +90,13 @@ class Node:
             
             # Import Data into [dxn] numpy array
             features = self.extract_features(features, [image])
+            num_features_extracted += len(features.data)
 
             # Compute distance between each feature to all the feature labels
             D = distance_matrix(features.data, self.label_matrix)
 
             # Find the minimum distance and corresponding cluster number
-            cluster_numbers = []
-            for row in D:
-                cluster_numbers.append(np.argmin(row))
+            cluster_numbers = np.argmin(D, 1)
 
             # For each cluster number in all the cluster numbers
             for i in range(len(cluster_numbers)):
@@ -100,7 +104,7 @@ class Node:
                 # if it matches the label for this node
                 if cur_cluster == self.node_id:
                     # add it to the node's feature collection
-                    self.features.append(features.data[i])
+                    self.collected_features.append(features.data[i])
                 else: 
                     # if it belongs to other nodes, add it to publish_store
                     publish_store.setdefault(cur_cluster, [])
@@ -112,8 +116,8 @@ class Node:
                 msg.data = np.array(pub_features).flatten()
                 msg.to_id = to_node_id
                 pub.publish(msg)
-            
             rate.sleep()
+        print '\nNum of features extracted: ' + str(num_features_extracted) + '\n'
 
     # Import car images and run Sift to get dataset
     def extract_features(self, features, image_list):
