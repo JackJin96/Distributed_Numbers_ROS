@@ -6,6 +6,7 @@ import random
 import sys
 import cv2
 import glob
+import yaml
 
 from std_msgs.msg import Int64
 from dist_num.msg import Feature # pylint: disable = import-error
@@ -29,12 +30,16 @@ class Node:
         rospy.init_node('Node')
         self.collected_features = []
         self.total_count = 0
-        # self.first_image = True
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
+        if self.node_id == 0:
+            self.first_node = True
+        else:
+            self.first_node = False
         self.publish_rate = rospy.get_param('publish_rate')
         self.publish_queue_size = rospy.get_param('publish_queue_size')
         self.feature_method = rospy.get_param('feature_extration_method')
         self.label_matrix = rospy.get_param('label_matrix')
+        self.num_agents = rospy.get_param('num_agents')
         self.feature_label = self.label_matrix[self.node_id]
 
     def callback(self, feature):
@@ -83,6 +88,7 @@ class Node:
                     image_list.append(cv2.imread(filepath))
 
         num_features_extracted = 0
+        first_image = True # flag to compute the k-means partitions
         # For each image
         for image in image_list:
             # temporarily store the features to publish
@@ -91,6 +97,30 @@ class Node:
             # Import Data into [dxn] numpy array
             features = self.extract_features(features, [image])
             num_features_extracted += len(features.data)
+
+            # Run k-means on the features
+            if self.first_node and first_image:
+                kmeans_output = clusteralgos.kmeans2(features.data, self.num_agents)
+                center_points = kmeans_output[0]
+                first_image = False
+                print '\n K means center points'
+                print center_points.shape
+                print type(center_points)
+                print '\n\n'
+
+                # Write the center matrix to the parameter yaml file
+                with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','r') as yamlfile:
+                    cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
+                    cur_yaml['label_matrix'] = center_points.tolist()
+
+                if cur_yaml:
+                    with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','w') as yamlfile:
+                        yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
+
+            # If the node is not the first node
+            if not self.first_node:
+                # Wait until the paritions have been written to the parameter yaml file
+                time.sleep(1)
 
             # Compute distance between each feature to all the feature labels
             D = distance_matrix(features.data, self.label_matrix)
