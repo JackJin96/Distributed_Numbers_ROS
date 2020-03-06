@@ -215,6 +215,42 @@ class Node:
         features.member = np.delete(features.member, 0)
 
         return features
+    
+    def cal_density(self, D, member, num_img):
+        I = np.identity(D.shape[0]).astype(int)
+        Dint = D.astype(int) - I
+        D[Dint == -1] = np.nan
+        num_feat = D.shape[0]
+        bandwidth = np.ones(num_feat)
+        membership = np.asarray(member)
+        membership = membership.astype(int)
+        x = np.empty(num_img,dtype=object)
+
+        #Loop through num images to find normalization for each one
+        for i in range(0, num_img):
+            x[i] = np.where(membership == i)
+        for k in range(0, num_feat):
+            first = x[membership[k]][0][0]
+            last_idx = len(x[membership[k]][0])
+            if last_idx > 1:
+                last = x[membership[k]][0][last_idx-1]
+                bandwidth[k] = np.nanmin(D[k, first:last+1])
+            else:
+                bandwidth[k] = 1
+        density = np.zeros(num_feat)
+        D[np.isnan(D)] = 0
+
+        #Broadcast division of bandwidth
+        D_corrected = D/bandwidth[:, None]
+
+        #Calc Gaussian at each feature
+        gaus = np.exp((-.5) * np.power(D_corrected, 2))
+
+        #Sum density values at each point
+        density = np.sum(gaus,axis=0)
+
+        return density, bandwidth
+
 
 if __name__ == '__main__':
     n = Node()
