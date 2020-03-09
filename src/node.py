@@ -29,6 +29,7 @@ class Node:
     def __init__(self):
         rospy.init_node('Node')
         self.collected_features = []
+        self.collected_feature_members = [] 
         self.total_count = 0
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         if self.node_id == 0:
@@ -42,12 +43,14 @@ class Node:
 
     def callback(self, feature):
         data = np.array(feature.data)
-        from_id, to_id = feature.header.frame_id, feature.to_id
+        from_id, to_id = int(feature.header.frame_id), feature.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
-            self.total_count += len(data)
+            data_len = len(data)
+            self.total_count += data_len
             for f in data:
                 self.collected_features.append(f)
+            self.collected_feature_members += [from_id] * data_len
             # cluster_centers = clusteralgos.kmeans2(self.collected_features, 3)
             # print '\n IN CALLBACK NODE ' + str(self.node_id) + '\n'
             # print 'DATA recieved! Node' + str(self.node_id) + ' Total recieved: ' + str(self.total_count)
@@ -113,6 +116,7 @@ class Node:
                 if cur_cluster == self.node_id:
                     # add it to the node's feature collection
                     self.collected_features.append(features.data[i])
+                    self.collected_feature_members.append(self.node_id)
                 else: 
                     # if it belongs to other nodes, add it to publish_store
                     publish_store.setdefault(cur_cluster, [])
@@ -123,10 +127,13 @@ class Node:
                 msg = Feature()
                 msg.data = np.array(pub_features).flatten()
                 msg.to_id = to_node_id
+                msg.header.frame_id = str(self.node_id)
                 pub.publish(msg)
             rate.sleep()
         print '\nNum of features extracted: ' + str(num_features_extracted) + '\n'
         print 'Node' + str(self.node_id) + ' number of features collected: ' + str(len(self.collected_features))
+        print 'Node' + str(self.node_id) + ' number of members collected: ' + str(len(self.collected_feature_members))
+        print self.collected_feature_members
 
     def get_image_paths(self):
         # Choose file path for main images
