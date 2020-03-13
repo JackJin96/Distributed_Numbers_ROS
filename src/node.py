@@ -105,15 +105,18 @@ class Node:
 
             # Compute distance between each feature to all the feature labels
             D = distance_matrix(features.data, self.label_matrix)
+            D = np.square(D) # pylint: disable = assignment-from-no-return
 
             # Find the minimum distance and corresponding cluster number
             cluster_numbers = np.argmin(D, 1)
 
+            num_col_features = 0
             # For each cluster number in all the cluster numbers
             for i in range(len(cluster_numbers)):
                 cur_cluster = cluster_numbers[i]
                 # if it matches the label for this node
                 if cur_cluster == self.node_id:
+                    num_col_features += 1
                     # add it to the node's feature collection
                     self.collected_features.append(features.data[i])
                     self.collected_feature_members.append(self.node_id)
@@ -121,19 +124,25 @@ class Node:
                     # if it belongs to other nodes, add it to publish_store
                     publish_store.setdefault(cur_cluster, [])
                     publish_store[cur_cluster].append(features.data[i])
+            # tempprint = "node %d collected %d features" % (self.node_id, num_col_features)
+            # print tempprint
 
+            num_pub_features = 0
             # Go through publish_store and publish all the features
             for to_node_id, pub_features in publish_store.items():
+                num_pub_features += len(pub_features)
                 msg = Feature()
                 msg.data = np.array(pub_features).flatten()
                 msg.to_id = to_node_id
                 msg.header.frame_id = str(self.node_id)
                 pub.publish(msg)
+            # temp = "\nnode %d published %d features\n" % (self.node_id, num_pub_features)
+            # print temp
             rate.sleep()
+        time.sleep(2)
         print '\nNum of features extracted: ' + str(num_features_extracted) + '\n'
         print 'Node' + str(self.node_id) + ' number of features collected: ' + str(len(self.collected_features))
         print 'Node' + str(self.node_id) + ' number of members collected: ' + str(len(self.collected_feature_members))
-        print self.collected_feature_members
 
     def get_image_paths(self):
         # Choose file path for main images
