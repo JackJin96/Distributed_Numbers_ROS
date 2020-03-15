@@ -7,9 +7,10 @@ import sys
 import cv2
 import glob
 import yaml
+import datetime
 
 from std_msgs.msg import Int64
-from dist_num.msg import Feature # pylint: disable = import-error
+from dist_num.msg import Feature, Features # pylint: disable = import-error
 from scipy.spatial import distance_matrix
 from scipy.cluster import vq as clusteralgos
 
@@ -41,9 +42,9 @@ class Node:
         self.feature_method = rospy.get_param('feature_extration_method')
         self.num_agents = rospy.get_param('num_agents')
 
-    def callback(self, feature):
-        data = np.array(feature.data)
-        from_id, to_id = int(feature.header.frame_id), feature.to_id
+    def callback(self, msg):
+        data = np.array(msg.data)
+        from_id, to_id = int(msg.header.frame_id), msg.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
             data_len = len(data)
@@ -62,6 +63,7 @@ class Node:
 
         sub = rospy.Subscriber('/features', Feature, self.callback)
         pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
+        self.pub_to_proc = rospy.Publisher('/proc_features', Features, queue_size = self.publish_queue_size)
 
         # pausing for 1 second before start can ensure the first messages are not lost
         # otherwise the first messages are lost
@@ -82,6 +84,8 @@ class Node:
         num_features_extracted = 0
         first_image = True # flag to compute the k-means partitions
         labels_obtained = False
+
+        start_time = datetime.datetime.now()
 
         # For each image
         for image in image_list:
@@ -126,6 +130,18 @@ class Node:
                     publish_store[cur_cluster].append(features.data[i])
             # tempprint = "node %d collected %d features" % (self.node_id, num_col_features)
             # print tempprint
+
+            end_time = datetime.datetime.now()
+            if end_time - start_time >= datetime.timedelta(seconds = 1):
+                msg = Features()
+                msg.data = np.array(self.collected_features).flatten()
+                msg.data_belongs = np.array(self.collected_feature_members)
+                msg.header.frame_id = str(self.node_id)
+                msg.to_id = self.node_id
+                self.collected_features = []
+                self.collected_feature_members = []
+                start_time = end_time
+                self.pub_to_proc.publish(msg)
 
             num_pub_features = 0
             # Go through publish_store and publish all the features
@@ -231,42 +247,6 @@ class Node:
         features.member = np.delete(features.member, 0)
 
         return features
-    
-    def cal_density(self, D, member, num_img):
-        I = np.identity(D.shape[0]).astype(int)
-        Dint = D.astype(int) - I
-        D[Dint == -1] = np.nan
-        num_feat = D.shape[0]
-        bandwidth = np.ones(num_feat)
-        membership = np.asarray(member)
-        membership = membership.astype(int)
-        x = np.empty(num_img,dtype=object)
-
-        #Loop through num images to find normalization for each one
-        for i in range(0, num_img):
-            x[i] = np.where(membership == i)
-        for k in range(0, num_feat):
-            first = x[membership[k]][0][0]
-            last_idx = len(x[membership[k]][0])
-            if last_idx > 1:
-                last = x[membership[k]][0][last_idx-1]
-                bandwidth[k] = np.nanmin(D[k, first:last+1])
-            else:
-                bandwidth[k] = 1
-        density = np.zeros(num_feat)
-        D[np.isnan(D)] = 0
-
-        #Broadcast division of bandwidth
-        D_corrected = D/bandwidth[:, None]
-
-        #Calc Gaussian at each feature
-        gaus = np.exp((-.5) * np.power(D_corrected, 2))
-
-        #Sum density values at each point
-        density = np.sum(gaus,axis=0)
-
-        return density, bandwidth
-
 
 if __name__ == '__main__':
     n = Node()
