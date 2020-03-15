@@ -130,18 +130,8 @@ class Node:
                     publish_store[cur_cluster].append(features.data[i])
             # tempprint = "node %d collected %d features" % (self.node_id, num_col_features)
             # print tempprint
-
-            end_time = datetime.datetime.now()
-            if end_time - start_time >= datetime.timedelta(seconds = 1):
-                msg = Features()
-                msg.data = np.array(self.collected_features).flatten()
-                msg.data_belongs = np.array(self.collected_feature_members)
-                msg.header.frame_id = str(self.node_id)
-                msg.to_id = self.node_id
-                self.collected_features = []
-                self.collected_feature_members = []
-                start_time = end_time
-                self.pub_to_proc.publish(msg)
+            
+            start_time = self.check_time_publish(start_time)
 
             num_pub_features = 0
             # Go through publish_store and publish all the features
@@ -155,11 +145,30 @@ class Node:
             # temp = "\nnode %d published %d features\n" % (self.node_id, num_pub_features)
             # print temp
             rate.sleep()
+        
         time.sleep(2)
+
+        start_time = self.check_time_publish(start_time)
         print '\nNum of features extracted: ' + str(num_features_extracted) + '\n'
         print 'Node' + str(self.node_id) + ' number of features collected: ' + str(len(self.collected_features))
         print 'Node' + str(self.node_id) + ' number of members collected: ' + str(len(self.collected_feature_members))
 
+    # check if time reaches one second,
+    # if so, publish existing features and empty collection
+    def check_time_publish(self, start_time):
+        end_time = datetime.datetime.now()
+        if end_time - start_time >= datetime.timedelta(seconds = 1):
+            msg = Features()
+            msg.data = np.array(self.collected_features).flatten()
+            msg.data_belongs = np.array(self.collected_feature_members)
+            msg.header.frame_id = str(self.node_id)
+            msg.to_id = self.node_id
+            self.collected_features = []
+            self.collected_feature_members = []
+            start_time = end_time
+            self.pub_to_proc.publish(msg)
+        return start_time
+    
     def get_image_paths(self):
         # Choose file path for main images
         dirname = path.abspath(path.join(__file__, "../.."))
