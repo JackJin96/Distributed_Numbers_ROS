@@ -6,13 +6,22 @@ import numpy as np
 
 from std_msgs.msg import String
 from dist_num.msg import Feature, Features # pylint: disable = import-error
+from scipy.spatial import distance as scipydist
+import matplotlib.pyplot as plt;
 
 class QuickmatchNode:
     def __init__(self):
         rospy.init_node('QuickmatchNode')
-        self.collected_features = []
-        self.collected_feature_members = []
+        # Collect feature if necessary, not recommended for currrent version
+        # self.collected_features = []
+        # self.collected_feature_members = []
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
+        self.label_matrix = np.array([])
+
+    def kmeans_callback(self, msg):
+        data = msg.data
+        data = np.reshape(data, (-1, 128))
+        self.label_matrix = data
 
     def callback(self, msg):
         data, data_belongs = np.array(msg.data), np.array(msg.data_belongs)
@@ -21,15 +30,29 @@ class QuickmatchNode:
             data = np.reshape(data, (-1, 128))
             data_len = len(data)
             data_belongs_len = len(data_belongs)
-            print '\ndata_len: %d, data_belongs_len: %d\n' % (data_len, data_belongs_len)
+            # print '\ndata_len: %d, data_belongs_len: %d\n' % (data_len, data_belongs_len)
+
+            while len(self.label_matrix) == 0:
+                time.sleep(0.1)
+
+            D = self.distance(data)
+            density, bandwidth = self.calc_density(D, data_belongs, len(data))
+
+            print 'NODE ' + str(self.node_id)
+            print density.shape
+            print bandwidth.shape
+
+            # Plot bar graph of density if desired
+            # y_pos = np.arange(len(density))
+            # plt.bar(y_pos, density, align='center', alpha=0.5)
+            # plt.show()
 
     def main(self):
         sub = rospy.Subscriber('/proc_features', Features, self.callback)
-        # pub = rospy.Publisher('/proc_features', Features, queue_size=10)
-
-        time.sleep(1)
+        self.sub_kmeans = rospy.Subscriber('/labels', Feature, self.kmeans_callback)
 
         rospy.spin()
+
         # #Set rate to use (in Hz)
         # rate = rospy.Rate(1)
 
@@ -44,10 +67,15 @@ class QuickmatchNode:
         #     #Wait until it is done
         #     rate.sleep()
 
+    def distance(self, points):
+        D = scipydist.pdist(points,'euclidean')
+        D = scipydist.squareform(D)
+        return D
+
     def process_data(self):
         pass
 
-    def cal_density(self, D, member, num_img):
+    def calc_density(self, D, member, num_img):
         I = np.identity(D.shape[0]).astype(int)
         Dint = D.astype(int) - I
         D[Dint == -1] = np.nan
