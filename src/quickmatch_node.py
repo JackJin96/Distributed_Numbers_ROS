@@ -39,6 +39,7 @@ class QuickmatchNode:
             density, bandwidth = self.calc_density(D, data_belongs, len(data))
 
             print 'NODE ' + str(self.node_id)
+            print len(D)
             print density.shape
             print bandwidth.shape
 
@@ -72,8 +73,25 @@ class QuickmatchNode:
         D = scipydist.squareform(D)
         return D
 
-    def process_data(self):
-        pass
+    def build_kdtree(self, density, dist, size):
+        #Initialize tree array or arrays
+        parent = np.empty(size, dtype=object)
+        parent_edge = np.empty(size, dtype=object)
+
+        #Build Tree starts here
+        for i in range(0, size):
+            parent[i] = np.array([-1])
+            parent_edge[i] = np.array([-1])
+        #Find larger density nodes here
+            larger = np.transpose(np.nonzero(np.greater(density, density[i])))
+        #If the node is not the highest, find its parent
+            if larger.shape[0] != 0:
+                x = np.take(dist[i,:], larger)
+                nearest = np.take(larger, (np.where(x == x.min())))
+                dist_min = x.min()
+                parent[i] = nearest[0]
+                parent_edge[i] = dist_min
+            return parent,parent_edge
 
     def calc_density(self, D, member, num_img):
         I = np.identity(D.shape[0]).astype(int)
@@ -89,9 +107,9 @@ class QuickmatchNode:
         for i in range(0, num_img):
             x[i] = np.where(membership == i)
         for k in range(0, num_feat):
-            first = x[membership[k]][0][0]
             last_idx = len(x[membership[k]][0])
             if last_idx > 1:
+                first = x[membership[k]][0][0]
                 last = x[membership[k]][0][last_idx-1]
                 bandwidth[k] = np.nanmin(D[k, first:last+1])
             else:
@@ -106,7 +124,7 @@ class QuickmatchNode:
         gaus = np.exp((-.5) * np.power(D_corrected, 2))
 
         #Sum density values at each point
-        density = np.sum(gaus,axis=0)
+        density = np.sum(gaus, axis=0)
 
         return density, bandwidth
 

@@ -190,6 +190,10 @@ class Node:
         kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
         center_points = kmeans_output[0]
 
+        print 'CENTER POINTS:\n'
+        print center_points.shape
+        # print all(center_points)
+
         # Write the center matrix to the parameter yaml file
         # with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','r') as yamlfile:
         #     cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
