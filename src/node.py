@@ -162,7 +162,9 @@ class Node:
     # if so, publish existing features and empty collection
     def check_time_publish(self, start_time):
         end_time = datetime.datetime.now()
-        if end_time - start_time >= datetime.timedelta(seconds = 1):
+        if end_time - start_time >= datetime.timedelta(seconds = 1) and \
+        len(self.collected_features) > 0 and \
+        len(self.collected_feature_members) > 0:
             msg = Features()
             msg.data = np.array(self.collected_features).flatten()
             msg.data_belongs = np.array(self.collected_feature_members)

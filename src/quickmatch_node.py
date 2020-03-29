@@ -30,6 +30,7 @@ class QuickmatchNode:
             data = np.reshape(data, (-1, 128))
             data_len = len(data)
             data_belongs_len = len(data_belongs)
+            # DEBUG PRINT
             # print '\ndata_len: %d, data_belongs_len: %d\n' % (data_len, data_belongs_len)
 
             while len(self.label_matrix) == 0:
@@ -37,11 +38,14 @@ class QuickmatchNode:
 
             D = self.distance(data)
             density, bandwidth = self.calc_density(D, data_belongs, len(data))
+            parent, parent_edge = self.build_kdtree(density, D, len(D))
 
             print 'NODE ' + str(self.node_id)
-            print len(D)
+            # print len(D)
             print density.shape
             print bandwidth.shape
+            # print parent.shape
+            # print parent_edge.shape
 
             # Plot bar graph of density if desired
             # y_pos = np.arange(len(density))
@@ -91,7 +95,7 @@ class QuickmatchNode:
                 dist_min = x.min()
                 parent[i] = nearest[0]
                 parent_edge[i] = dist_min
-            return parent,parent_edge
+            return parent, parent_edge
 
     def calc_density(self, D, member, num_img):
         I = np.identity(D.shape[0]).astype(int)
