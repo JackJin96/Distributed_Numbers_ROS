@@ -80,6 +80,32 @@ class QuickmatchNode:
         #     #Wait until it is done
         #     rate.sleep()
 
+    def break_merge_tree(self, parent, parent_edge, member, sorted_idx, bandwidth, 
+                         threshold, size, agent_index=1, max_feats=1):
+        offset = np.multiply(agent_index, max_feats)
+        cluster_member = np.add(np.arange(size[0]), offset)
+        matchden = bandwidth
+
+        for j in range(0,size[0]):
+            idx = sorted_idx[j]
+            parent_idx = parent[idx][0]
+
+            if parent_idx != -1:
+                min_dens = np.minimum(matchden[idx], matchden[parent_idx])
+                x = np.take(member, np.where(cluster_member == cluster_member[parent_idx]))
+                y = np.take(member, np.where(cluster_member == cluster_member[idx]))
+                isin_truth = np.isin(x, y)
+
+                #Only consider points that meet criteria
+                if (parent_edge[idx] < (threshold * min_dens)) and not(isin_truth.any()):
+                    cluster_member[cluster_member == cluster_member[idx]] = cluster_member[parent_idx]
+                    matchden[cluster_member == cluster_member[idx]] = min_dens
+                    matchden[cluster_member == cluster_member[parent_idx]] = min_dens
+
+            (values,counts) = np.unique(cluster_member, return_counts=True)
+            clusters = counts
+        return clusters, cluster_member, matchden
+
     def sort_edge_index(self, parent_edge):
         sorted_idx = sorted(range(len(parent_edge)), key=lambda k: parent_edge[k])
         return sorted_idx
