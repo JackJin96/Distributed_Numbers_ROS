@@ -35,17 +35,25 @@ class QuickmatchNode:
 
             while len(self.label_matrix) == 0:
                 time.sleep(0.1)
-
+            # Calculate distance matrix
             D = self.distance(data)
+
+            # Calculate Feature Density
             density, bandwidth = self.calc_density(D, data_belongs, len(data))
+
+            # Build Tree
             parent, parent_edge = self.build_kdtree(density, D, len(D))
 
+            # sort the parent edges from shortest to longest and returns the sorted indicies
+            sorted_idx = self.sort_edge_index(parent_edge)
+
+            ##### DEBUG PRINT #####
             print 'NODE ' + str(self.node_id)
-            # print len(D)
-            print density.shape
-            print bandwidth.shape
-            # print parent.shape
-            # print parent_edge.shape
+            print sorted_idx
+            # print density
+            # print type(bandwidth)
+            # print parent
+            # print parent_edge
 
             # Plot bar graph of density if desired
             # y_pos = np.arange(len(density))
@@ -72,6 +80,10 @@ class QuickmatchNode:
         #     #Wait until it is done
         #     rate.sleep()
 
+    def sort_edge_index(self, parent_edge):
+        sorted_idx = sorted(range(len(parent_edge)), key=lambda k: parent_edge[k])
+        return sorted_idx
+
     def distance(self, points):
         D = scipydist.pdist(points,'euclidean')
         D = scipydist.squareform(D)
@@ -95,7 +107,7 @@ class QuickmatchNode:
                 dist_min = x.min()
                 parent[i] = nearest[0]
                 parent_edge[i] = dist_min
-            return parent, parent_edge
+        return parent, parent_edge
 
     def calc_density(self, D, member, num_img):
         I = np.identity(D.shape[0]).astype(int)
