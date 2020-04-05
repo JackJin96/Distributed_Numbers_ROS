@@ -87,7 +87,7 @@ class Node:
         features = Empty_struc()
 
         # Get raw image files based on node_id
-        image_list = self.get_image_paths()             # features handled by the current node
+        image_list = self.get_images()             # features handled by the current node
 
         num_features_extracted = 0
         first_image = True # flag to compute the k-means partitions
@@ -176,7 +176,7 @@ class Node:
             self.pub_to_proc.publish(msg)
         return start_time
     
-    def get_image_paths(self):
+    def get_images(self):
         # Choose file path for main images
         dirname = path.abspath(path.join(__file__, "../.."))
         images_file_path = dirname + '/test_images/*.%s'
@@ -261,6 +261,9 @@ class Node:
                 features.data = np.concatenate((features.data, des), axis=0)
                 features.member = np.concatenate((features.member, member), axis=0)
                 first = 1
+            print 'keypoints'
+            print features.kpts
+            # print np.array(features.kpts).shape
 
         # Delete first empty artifact from stucture def
         features.keypoints = np.delete(features.keypoints, 0, axis=0)

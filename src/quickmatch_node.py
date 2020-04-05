@@ -3,11 +3,15 @@
 import rospy
 import time
 import numpy as np
+import sys
+import cv2
+import glob
 
 from std_msgs.msg import String
 from dist_num.msg import Feature, Features # pylint: disable = import-error
 from scipy.spatial import distance as scipydist
 import matplotlib.pyplot as plt;
+import os.path as path
 
 class QuickmatchNode:
     def __init__(self):
@@ -17,6 +21,9 @@ class QuickmatchNode:
         # self.collected_feature_members = []
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.label_matrix = np.array([])
+        self.threshold = 0.75
+        self.image_list = self.get_all_images()
+        self.kpts = self.compute_image_kpts('SIFT')
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -47,13 +54,27 @@ class QuickmatchNode:
             # sort the parent edges from shortest to longest and returns the sorted indicies
             sorted_idx = self.sort_edge_index(parent_edge)
 
+            clusters, cluster_member, matchden = self.break_merge_tree(parent, parent_edge, data_belongs, 
+                                                                       sorted_idx, bandwidth, self.threshold, 
+                                                                       np.shape(density), self.node_id, data_len)
+
+            query_idx = 0
+            print('Press Any Key to Show Next Image Set')
+            for i in range(0, len(self.label_matrix) - 1):
+                print('Image Index Comparison')
+                self.features_to_DMatch(cluster_member, D, query_idx, i)
+            
             ##### DEBUG PRINT #####
             print 'NODE ' + str(self.node_id)
-            print sorted_idx
+            print np.array(self.image_list).shape
+            # print sorted_idx
             # print density
             # print type(bandwidth)
             # print parent
             # print parent_edge
+            # print clusters.shape
+            # print cluster_member.shape
+            # print matchden.shape
 
             # Plot bar graph of density if desired
             # y_pos = np.arange(len(density))
@@ -80,6 +101,80 @@ class QuickmatchNode:
         #     #Wait until it is done
         #     rate.sleep()
 
+    def compute_image_kpts(self, method):
+        # Initalize data structures
+        if method == 'SIFT':
+            sift = cv2.xfeatures2d.SIFT_create(500, 3, 0.1, 5, 1.6)
+        if method == 'ORB':
+            orb = cv2.ORB_create()
+        if method == 'SURF':
+            surf = cv2.xfeatures2d.SURF_create(400)
+        first = 0
+
+        # For each image, extract sift features and organize them into right structures
+        for i in range(0, len(self.image_list)):
+            gray= cv2.cvtColor(self.image_list[i], cv2.COLOR_BGR2GRAY)
+            if method == 'SURF':
+                kp, des = surf.detectAndCompute(gray, None)
+            if method == 'SIFT':
+                kp, des = sift.detectAndCompute(gray, None)
+            if method == 'ORB':
+                kp, des = orb.detectAndCompute(gray, None)
+            # add features to data structures
+            if first == 0:
+                kpts = kp
+                first = 1
+            elif first > 0:
+                kpts = np.hstack((kpts, kp))
+        return kpts
+
+    # Convert sets of images to DMatch stucture
+    # input: cluster_member, node_id, 
+    def features_to_DMatch(self, cluster_member, dist, im_idx1, im_idx2):
+        x = np.take(cluster_member, np.where(self.node_id == im_idx1))
+        y = np.take(cluster_member, np.where(self.node_id == im_idx2))
+        match = np.intersect1d(x,y)
+        first = 0
+        image1 = self.image_list[im_idx1].copy()
+        image2 = self.image_list[im_idx2].copy()
+
+        if match.shape[0] == 0:
+            print('No Matches between those images')
+            print(im_idx1,im_idx2)
+            return()
+        for i in range(0, match.shape[0]):
+            fet1_idxa = np.where(cluster_member == match[i])
+            fet1_idxb = np.where(self.node_id == im_idx1)
+            fet1_idx = np.intersect1d(fet1_idxa, fet1_idxb)
+            fet2_idxa = np.where(cluster_member == match[i])
+            fet2_idxb = np.where(self.node_id == im_idx2)
+            fet2_idx = np.intersect1d(fet2_idxa, fet2_idxb)
+            desc_dist = dist[fet1_idx, fet2_idx]
+            dpoint = cv2.DMatch(fet1_idx, fet2_idx, im_idx1, desc_dist)
+            if first == 0:
+                DMatches = dpoint
+                first = 1
+            if first > 0:
+                DMatches = np.hstack((DMatches, dpoint))
+        print(im_idx1, im_idx2)
+        image1 = self.image_list[im_idx1].copy()
+        image2 = self.image_list[im_idx2].copy()
+        img3 = cv2.drawMatches(image1, self.kpts, image2, self.kpts, DMatches,1)
+
+        cv2.imshow("Image", img3)
+        cv2.waitKey()
+        return(DMatches)
+
+    def get_all_images(self):
+        # Choose file path for main images
+        dirname = path.abspath(path.join(__file__, "../.."))
+        images_file_path = dirname + '/test_images/*.%s'
+        res = []    # images handled by the current node
+        for filepaths in [sorted(glob.glob(images_file_path % ext)) for ext in ["jpg", "gif", "png", "tga"]]:
+            for filepath in filepaths:
+                res.append(cv2.imread(filepath))
+        return res
+
     def break_merge_tree(self, parent, parent_edge, member, sorted_idx, bandwidth, 
                          threshold, size, agent_index=1, max_feats=1):
         offset = np.multiply(agent_index, max_feats)
@@ -102,7 +197,7 @@ class QuickmatchNode:
                     matchden[cluster_member == cluster_member[idx]] = min_dens
                     matchden[cluster_member == cluster_member[parent_idx]] = min_dens
 
-            (values,counts) = np.unique(cluster_member, return_counts=True)
+            (values, counts) = np.unique(cluster_member, return_counts=True)
             clusters = counts
         return clusters, cluster_member, matchden
 
