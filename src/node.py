@@ -261,9 +261,6 @@ class Node:
                 features.data = np.concatenate((features.data, des), axis=0)
                 features.member = np.concatenate((features.member, member), axis=0)
                 first = 1
-            print 'keypoints'
-            print features.kpts
-            # print np.array(features.kpts).shape
 
         # Delete first empty artifact from stucture def
         features.keypoints = np.delete(features.keypoints, 0, axis=0)

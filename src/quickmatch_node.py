@@ -24,6 +24,10 @@ class QuickmatchNode:
         self.threshold = 0.75
         self.image_list = self.get_all_images()
         self.kpts = self.compute_image_kpts('SIFT')
+        # print '### DEBUG ###'
+        # print np.array(self.image_list).shape
+        # self.kpts = self.compute_image_kpts('SIFT')
+        # print np.array(self.kpts).shape
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -60,13 +64,13 @@ class QuickmatchNode:
 
             query_idx = 0
             print('Press Any Key to Show Next Image Set')
-            for i in range(0, len(self.label_matrix) - 1):
+            for i in range(0, len(self.label_matrix)):
                 print('Image Index Comparison')
                 self.features_to_DMatch(cluster_member, D, query_idx, i)
             
             ##### DEBUG PRINT #####
-            print 'NODE ' + str(self.node_id)
-            print np.array(self.image_list).shape
+            # print 'NODE ' + str(self.node_id)
+            # print np.array(self.image_list).shape
             # print sorted_idx
             # print density
             # print type(bandwidth)
@@ -102,6 +106,8 @@ class QuickmatchNode:
         #     rate.sleep()
 
     def compute_image_kpts(self, method):
+        # print '#### DEBUG ####'
+        # print self.image_list
         # Initalize data structures
         if method == 'SIFT':
             sift = cv2.xfeatures2d.SIFT_create(500, 3, 0.1, 5, 1.6)
