@@ -64,12 +64,14 @@ class QuickmatchNode:
 
             query_idx = 0
             print('Press Any Key to Show Next Image Set')
-            for i in range(0, len(self.label_matrix)):
+            for i in range(0, len(self.image_list)):
                 print('Image Index Comparison')
-                self.features_to_DMatch(cluster_member, D, query_idx, i)
+                dmatch = self.features_to_DMatch(cluster_member, D, query_idx, i)
+                print '##### dmatch shape: #####'
+                print len(dmatch)
             
             ##### DEBUG PRINT #####
-            # print 'NODE ' + str(self.node_id)
+            print 'NODE ' + str(self.node_id)
             # print np.array(self.image_list).shape
             # print sorted_idx
             # print density
@@ -77,7 +79,7 @@ class QuickmatchNode:
             # print parent
             # print parent_edge
             # print clusters.shape
-            # print cluster_member.shape
+            # print cluster_member
             # print matchden.shape
 
             # Plot bar graph of density if desired
@@ -168,8 +170,10 @@ class QuickmatchNode:
         img3 = cv2.drawMatches(image1, self.kpts, image2, self.kpts, DMatches,1)
 
         cv2.imshow("Image", img3)
-        cv2.waitKey()
-        return(DMatches)
+        cv2.waitKey(0)
+        cv2.destroyWindow("Image")
+        # cv2.destroyAllWindows()
+        return (DMatches)
 
     def get_all_images(self):
         # Choose file path for main images

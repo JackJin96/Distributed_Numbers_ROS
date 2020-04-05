@@ -5,7 +5,7 @@
     <node pkg="dist_num" type="node.py" name="node1" output="screen" />
     <node pkg="dist_num" type="node.py" name="node2" output="screen" />
     <node pkg="dist_num" type="quickmatch_node.py" name="quickmatchnode0" output="screen"/>
-    <node pkg="dist_num" type="quickmatch_node.py" name="quickmatchnode1" output="screen"/>
-    <node pkg="dist_num" type="quickmatch_node.py" name="quickmatchnode2" output="screen"/>
+    <!-- <node pkg="dist_num" type="quickmatch_node.py" name="quickmatchnode1" output="screen"/> -->
+    <!-- <node pkg="dist_num" type="quickmatch_node.py" name="quickmatchnode2" output="screen"/> -->
     <!-- <node pkg="dist_num" type="node2.py" name="node2" output="screen" /> -->
 </launch>
