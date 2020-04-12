@@ -23,6 +23,8 @@ class QuickmatchNode:
         self.label_matrix = np.array([])
         self.threshold = 0.75
         self.image_list = self.get_all_images()
+        print '######'
+        print np.array(self.image_list).shape
         self.kpts = self.compute_image_kpts('SIFT')
         # print '### DEBUG ###'
         # print np.array(self.image_list).shape
@@ -67,7 +69,7 @@ class QuickmatchNode:
             print('Press Any Key to Show Next Image Set')
             for i in range(0, len(self.image_list)):
                 print('Image Index Comparison')
-                dmatch = self.features_to_DMatch(cluster_member, D, query_idx, i)
+                dmatch = self.features_to_DMatch(data_belongs, cluster_member, D, query_idx, i)
                 print '##### dmatch shape: #####'
                 print len(dmatch)
             
@@ -139,9 +141,9 @@ class QuickmatchNode:
 
     # Convert sets of images to DMatch stucture
     # input: cluster_member, node_id, 
-    def features_to_DMatch(self, cluster_member, dist, im_idx1, im_idx2):
-        x = np.take(cluster_member, np.where(self.node_id == im_idx1))
-        y = np.take(cluster_member, np.where(self.node_id == im_idx2))
+    def features_to_DMatch(self, data_belongs, cluster_member, dist, im_idx1, im_idx2):
+        x = np.take(cluster_member, np.where(data_belongs == im_idx1))
+        y = np.take(cluster_member, np.where(data_belongs == im_idx2))
         match = np.intersect1d(x,y)
         first = 0
         image1 = self.image_list[im_idx1].copy()
@@ -153,10 +155,10 @@ class QuickmatchNode:
             return()
         for i in range(0, match.shape[0]):
             fet1_idxa = np.where(cluster_member == match[i])
-            fet1_idxb = np.where(self.node_id == im_idx1)
+            fet1_idxb = np.where(data_belongs == im_idx1)
             fet1_idx = np.intersect1d(fet1_idxa, fet1_idxb)
             fet2_idxa = np.where(cluster_member == match[i])
-            fet2_idxb = np.where(self.node_id == im_idx2)
+            fet2_idxb = np.where(data_belongs == im_idx2)
             fet2_idx = np.intersect1d(fet2_idxa, fet2_idxb)
             desc_dist = dist[fet1_idx, fet2_idx]
             dpoint = cv2.DMatch(fet1_idx, fet2_idx, im_idx1, desc_dist)
