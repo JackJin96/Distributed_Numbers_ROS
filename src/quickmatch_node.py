@@ -217,7 +217,7 @@ class QuickmatchNode:
         # print member.tolist()
         # print clusters.tolist()
         # print cluster_member.tolist()
-        # print matchden.shape
+        # print matchden.tolist()
         return clusters, cluster_member, matchden
 
     def sort_edge_index(self, parent_edge):

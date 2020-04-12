@@ -50,6 +50,7 @@ class Node:
 
     def collection_callback(self, msg):
         data = np.array(msg.data)
+        data_belongs = np.array(msg.data_belongs)
         from_id, to_id = int(msg.header.frame_id), msg.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
@@ -57,7 +58,7 @@ class Node:
             self.total_count += data_len
             for f in data:
                 self.collected_features.append(f)
-            self.collected_feature_members += [from_id] * data_len
+            self.collected_feature_members.extend(data_belongs)
             # cluster_centers = clusteralgos.kmeans2(self.collected_features, 3)
             # print '\n IN collection_callback NODE ' + str(self.node_id) + '\n'
             # print 'DATA recieved! Node' + str(self.node_id) + ' Total recieved: ' + str(self.total_count)
@@ -67,9 +68,9 @@ class Node:
 
     def main(self):
 
-        sub = rospy.Subscriber('/features', Feature, self.collection_callback)
+        sub = rospy.Subscriber('/features', Features, self.collection_callback)
         self.sub_kmeans = rospy.Subscriber('/labels', Feature, self.kmeans_callback)
-        pub = rospy.Publisher('/features', Feature, queue_size = self.publish_queue_size)
+        pub = rospy.Publisher('/features', Features, queue_size = self.publish_queue_size)
         self.pub_to_proc = rospy.Publisher('/proc_features', Features, queue_size = self.publish_queue_size)
         self.pub_labels = rospy.Publisher('/labels', Feature, queue_size = self.publish_queue_size)
 
@@ -87,7 +88,7 @@ class Node:
         features = Empty_struc()
 
         # Get raw image files based on node_id
-        image_list = self.get_images()             # features handled by the current node
+        image_list, image_nums = self.get_images()             # features handled by the current node
 
         num_features_extracted = 0
         first_image = True # flag to compute the k-means partitions
@@ -95,9 +96,11 @@ class Node:
         start_time = datetime.datetime.now()
 
         # For each image
-        for image in image_list:
+        for i in range(len(image_list)):
+            image = image_list[i]
+            image_num = image_nums[i]
             # temporarily store the features to publish
-            publish_store = {}  # to_node_id: [features]
+            publish_store = {}  # to_node_id: [[features], [feature_image_nums]]
             
             # Import Data into [dxn] numpy array
             features = self.extract_features(features, [image])
@@ -128,11 +131,12 @@ class Node:
                     num_col_features += 1
                     # add it to the node's feature collection
                     self.collected_features.append(features.data[i])
-                    self.collected_feature_members.append(self.node_id)
+                    self.collected_feature_members.append(image_num)
                 else: 
                     # if it belongs to other nodes, add it to publish_store
-                    publish_store.setdefault(cur_cluster, [])
-                    publish_store[cur_cluster].append(features.data[i])
+                    publish_store.setdefault(cur_cluster, [[], []])
+                    publish_store[cur_cluster][0].append(features.data[i])
+                    publish_store[cur_cluster][1].append(image_num)
             # tempprint = "node %d collected %d features" % (self.node_id, num_col_features)
             # print tempprint
             
@@ -140,10 +144,11 @@ class Node:
 
             num_pub_features = 0
             # Go through publish_store and publish all the features
-            for to_node_id, pub_features in publish_store.items():
-                num_pub_features += len(pub_features)
-                msg = Feature()
-                msg.data = np.array(pub_features).flatten()
+            for to_node_id, pub_features_image_nums in publish_store.items():
+                num_pub_features += len(pub_features_image_nums[0])
+                msg = Features()
+                msg.data = np.array(pub_features_image_nums[0]).flatten()
+                msg.data_belongs = np.array(pub_features_image_nums[1])
                 msg.to_id = to_node_id
                 msg.header.frame_id = str(self.node_id)
                 pub.publish(msg)
@@ -181,19 +186,22 @@ class Node:
         dirname = path.abspath(path.join(__file__, "../.."))
         images_file_path = dirname + '/test_images/*.%s'
         res = []    # images handled by the current node
+        image_nums = []
         for filepaths in [sorted(glob.glob(images_file_path % ext)) for ext in ["jpg", "gif", "png", "tga"]]:
             for filepath in filepaths:
                 image_num = int(filepath[57:-4])
                 if  image_num == 2 * self.node_id + 1 or image_num == 2 * self.node_id + 2:
+                    image_nums.append(image_num - 1)
                     res.append(cv2.imread(filepath))
-        return res
+        return res, image_nums
     
     def run_and_publish_kmeans(self, data):
         # kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
         # center_points = kmeans_output[0]
 
+        # the following two lines are for debugging
         data_mean = np.average(data, 0)
-        center_points = np.array([data_mean, np.zeros(128), np.zeros(128)])
+        center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
 
         print 'CENTER POINTS:\n'
         # print data.shape
@@ -262,8 +270,9 @@ class Node:
         features.data = np.random.normal(features.data, 0.001)
         features.member = np.delete(features.member, 0)
 
-        print '##### DEBUG'
-        print features.member
+        # print '##### DEBUG'
+        # print features.member
+        # print len(image_list)
 
         return features
 
