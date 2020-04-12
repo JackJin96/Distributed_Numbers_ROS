@@ -36,6 +36,7 @@ class QuickmatchNode:
 
     def callback(self, msg):
         data, data_belongs = np.array(msg.data), np.array(msg.data_belongs)
+
         from_id, to_id = int(msg.header.frame_id), msg.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
@@ -187,8 +188,10 @@ class QuickmatchNode:
 
     def break_merge_tree(self, parent, parent_edge, member, sorted_idx, bandwidth, 
                          threshold, size, agent_index=1, max_feats=1):
-        offset = np.multiply(agent_index, max_feats)
-        cluster_member = np.add(np.arange(size[0]), offset)
+        # offset = np.multiply(agent_index, max_feats)
+        # cluster_member = np.add(np.arange(size[0]), offset)
+
+        cluster_member = np.arange(size[0])
         matchden = bandwidth
 
         for j in range(0,size[0]):
@@ -209,10 +212,18 @@ class QuickmatchNode:
 
             (values, counts) = np.unique(cluster_member, return_counts=True)
             clusters = counts
+        
+        # print '########## DEBUG'
+        # print member.tolist()
+        # print clusters.tolist()
+        # print cluster_member.tolist()
+        # print matchden.shape
         return clusters, cluster_member, matchden
 
     def sort_edge_index(self, parent_edge):
         sorted_idx = sorted(range(len(parent_edge)), key=lambda k: parent_edge[k])
+        # print '####### DEBUG'
+        # print sorted_idx
         return sorted_idx
 
     def distance(self, points):
@@ -246,21 +257,18 @@ class QuickmatchNode:
         D[Dint == -1] = np.nan
         num_feat = D.shape[0]
         bandwidth = np.ones(num_feat)
-        membership = np.asarray(member)
-        membership = membership.astype(int)
+        # membership = np.asarray(member)
+        membership = member.astype(int)
         x = np.empty(num_img,dtype=object)
 
         #Loop through num images to find normalization for each one
         for i in range(0, num_img):
             x[i] = np.where(membership == i)
         for k in range(0, num_feat):
-            last_idx = len(x[membership[k]][0])
-            if last_idx > 1:
-                first = x[membership[k]][0][0]
-                last = x[membership[k]][0][last_idx-1]
-                bandwidth[k] = np.nanmin(D[k, first:last+1])
-            else:
-                bandwidth[k] = 1
+            first = x[membership[k]][0][0]
+            last_idx = x[membership[k]][0].shape[0]
+            last = x[membership[k]][0][last_idx-1]
+            bandwidth[k] = np.nanmin(D[k,first:last])
         density = np.zeros(num_feat)
         D[np.isnan(D)] = 0
 

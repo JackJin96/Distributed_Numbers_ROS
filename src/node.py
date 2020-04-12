@@ -189,22 +189,16 @@ class Node:
         return res
     
     def run_and_publish_kmeans(self, data):
-        kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
-        center_points = kmeans_output[0]
+        # kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
+        # center_points = kmeans_output[0]
+
+        data_mean = np.average(data, 0)
+        center_points = np.array([data_mean, np.zeros(128), np.zeros(128)])
 
         print 'CENTER POINTS:\n'
+        # print data.shape
         print center_points.shape
-        # print all(center_points)
 
-        # Write the center matrix to the parameter yaml file
-        # with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','r') as yamlfile:
-        #     cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
-        #     cur_yaml['label_matrix'] = center_points.tolist()
-
-        # if cur_yaml:
-        #     with open('/home/tron_ubuntu2/catkin_ws/src/dist_num/config/params.yaml','w') as yamlfile:
-        #         yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
-        
         center_points_flattened = center_points.flatten()
         msg = Feature()
         msg.data = center_points_flattened
@@ -267,6 +261,9 @@ class Node:
         features.data = np.delete(features.data, 0, axis=0)
         features.data = np.random.normal(features.data, 0.001)
         features.member = np.delete(features.member, 0)
+
+        print '##### DEBUG'
+        print features.member
 
         return features
 
