@@ -31,6 +31,7 @@ class Node:
         rospy.init_node('Node')
         self.collected_features = []
         self.collected_feature_members = [] 
+        self.collected_kpt_lists = []
         self.total_count = 0
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         if self.node_id == 0:
@@ -51,20 +52,16 @@ class Node:
     def collection_callback(self, msg):
         data = np.array(msg.data)
         data_belongs = np.array(msg.data_belongs)
+        data_kpts = np.array(msg.data_kpts)
         from_id, to_id = int(msg.header.frame_id), msg.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
+            data_kpts = np.reshape(data_kpts, (-1, 3))
             data_len = len(data)
             self.total_count += data_len
-            for f in data:
-                self.collected_features.append(f)
+            self.collected_features.extend(data)
             self.collected_feature_members.extend(data_belongs)
-            # cluster_centers = clusteralgos.kmeans2(self.collected_features, 3)
-            # print '\n IN collection_callback NODE ' + str(self.node_id) + '\n'
-            # print 'DATA recieved! Node' + str(self.node_id) + ' Total recieved: ' + str(self.total_count)
-            # print 'DATA recieved! Node' + str(self.node_id) + ' length recieved: ' + str(len(data))
-            # print 'Self contains: ' + str(len(self.collected_features))
-            # print '\n END collection_callback \n'
+            self.collected_kpt_lists.extend(data_kpts)
 
     def main(self):
 
@@ -99,11 +96,18 @@ class Node:
         for i in range(len(image_list)):
             image = image_list[i]
             image_num = image_nums[i]
+
             # temporarily store the features to publish
-            publish_store = {}  # to_node_id: [[features], [feature_image_nums]]
+            # to_node_id: [[features], [feature_nums], [feature_keypoint]]
+            # each feature: array of length 128
+            # each feature number: integer that indicates which image the feature belongs to
+            # each keypoint: list of [float x, float y, float size]
+            publish_store = {}
             
             # Import Data into [dxn] numpy array
             features = self.extract_features(features, [image])
+            # print '### DEBUG'
+            # print features.keypoints
             num_features_extracted += len(features.data)
 
             # Run k-means on the features
@@ -124,21 +128,25 @@ class Node:
 
             num_col_features = 0
             # For each cluster number in all the cluster numbers
-            for i in range(len(cluster_numbers)):
-                cur_cluster = cluster_numbers[i]
+            for j in range(len(cluster_numbers)):
+                cur_cluster = cluster_numbers[j]
+
+                cur_kpt = features.kpts[j]
+                cur_kpt_list = self.kpt_to_list(cur_kpt)
+
                 # if it matches the label for this node
                 if cur_cluster == self.node_id:
                     num_col_features += 1
                     # add it to the node's feature collection
-                    self.collected_features.append(features.data[i])
+                    self.collected_features.append(features.data[j])
                     self.collected_feature_members.append(image_num)
+                    self.collected_kpt_lists.append(cur_kpt_list)
                 else: 
                     # if it belongs to other nodes, add it to publish_store
-                    publish_store.setdefault(cur_cluster, [[], []])
-                    publish_store[cur_cluster][0].append(features.data[i])
+                    publish_store.setdefault(cur_cluster, [[], [], []])
+                    publish_store[cur_cluster][0].append(features.data[j])
                     publish_store[cur_cluster][1].append(image_num)
-            # tempprint = "node %d collected %d features" % (self.node_id, num_col_features)
-            # print tempprint
+                    publish_store[cur_cluster][2].append(cur_kpt_list)
             
             start_time = self.check_time_publish(start_time)
 
@@ -149,11 +157,10 @@ class Node:
                 msg = Features()
                 msg.data = np.array(pub_features_image_nums[0]).flatten()
                 msg.data_belongs = np.array(pub_features_image_nums[1])
+                msg.data_kpts = np.array(pub_features_image_nums[2]).flatten()
                 msg.to_id = to_node_id
                 msg.header.frame_id = str(self.node_id)
                 pub.publish(msg)
-            # temp = "\nnode %d published %d features\n" % (self.node_id, num_pub_features)
-            # print temp
             rate.sleep()
         
         time.sleep(2)
@@ -163,20 +170,29 @@ class Node:
         print 'Node' + str(self.node_id) + ' number of features collected: ' + str(len(self.collected_features))
         print 'Node' + str(self.node_id) + ' number of members collected: ' + str(len(self.collected_feature_members))
 
+    # convert cv2.keypoint object to list of [float x, float y, float size]
+    def kpt_to_list(self, cv2_kpt):
+        x, y = cv2_kpt.pt[0], cv2_kpt.pt[1]
+        size = cv2_kpt.size
+        return [x, y, size]
+
     # check if time reaches one second,
     # if so, publish existing features and empty collection
     def check_time_publish(self, start_time):
         end_time = datetime.datetime.now()
         if end_time - start_time >= datetime.timedelta(seconds = 1) and \
         len(self.collected_features) > 0 and \
-        len(self.collected_feature_members) > 0:
+        len(self.collected_feature_members) > 0 and \
+        len(self.collected_kpt_lists) > 0:
             msg = Features()
             msg.data = np.array(self.collected_features).flatten()
             msg.data_belongs = np.array(self.collected_feature_members)
+            msg.data_kpts = np.array(self.collected_kpt_lists).flatten()
             msg.header.frame_id = str(self.node_id)
             msg.to_id = self.node_id
             self.collected_features = []
             self.collected_feature_members = []
+            self.collected_kpt_lists = []
             start_time = end_time
             self.pub_to_proc.publish(msg)
         return start_time
@@ -202,10 +218,6 @@ class Node:
         # the following two lines are for debugging
         data_mean = np.average(data, 0)
         center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
-
-        print 'CENTER POINTS:\n'
-        # print data.shape
-        print center_points.shape
 
         center_points_flattened = center_points.flatten()
         msg = Feature()
@@ -269,10 +281,6 @@ class Node:
         features.data = np.delete(features.data, 0, axis=0)
         features.data = np.random.normal(features.data, 0.001)
         features.member = np.delete(features.member, 0)
-
-        # print '##### DEBUG'
-        # print features.member
-        # print len(image_list)
 
         return features
 

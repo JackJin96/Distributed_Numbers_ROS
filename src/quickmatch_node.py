@@ -23,13 +23,7 @@ class QuickmatchNode:
         self.label_matrix = np.array([])
         self.threshold = 0.75
         self.image_list = self.get_all_images()
-        print '######'
-        print np.array(self.image_list).shape
         self.kpts = self.compute_image_kpts('SIFT')
-        # print '### DEBUG ###'
-        # print np.array(self.image_list).shape
-        # self.kpts = self.compute_image_kpts('SIFT')
-        # print np.array(self.kpts).shape
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -38,10 +32,13 @@ class QuickmatchNode:
 
     def callback(self, msg):
         data, data_belongs = np.array(msg.data), np.array(msg.data_belongs)
+        data_kpts = np.array(msg.data_kpts)
 
         from_id, to_id = int(msg.header.frame_id), msg.to_id
         if to_id == self.node_id:
             data = np.reshape(data, (-1, 128))
+            data_kpts = np.reshape(data_kpts, (-1, 3))
+            data_kpts = [cv2.KeyPoint(x, y, size) for x, y, size in data_kpts]
             data_len = len(data)
             data_belongs_len = len(data_belongs)
             # DEBUG PRINT
@@ -69,21 +66,12 @@ class QuickmatchNode:
             print('Press Any Key to Show Next Image Set')
             for i in range(0, len(self.image_list)):
                 print('Image Index Comparison')
-                dmatch = self.features_to_DMatch(data_belongs, cluster_member, D, query_idx, i)
+                dmatch = self.features_to_DMatch(data_belongs, data_kpts, cluster_member, D, query_idx, i)
                 print '##### dmatch shape: #####'
                 print len(dmatch)
             
             ##### DEBUG PRINT #####
             print 'NODE ' + str(self.node_id)
-            # print np.array(self.image_list).shape
-            # print sorted_idx
-            # print density
-            # print type(bandwidth)
-            # print parent
-            # print parent_edge
-            # print clusters.shape
-            # print cluster_member
-            # print matchden.shape
 
             # Plot bar graph of density if desired
             # y_pos = np.arange(len(density))
@@ -96,24 +84,7 @@ class QuickmatchNode:
 
         rospy.spin()
 
-        # #Set rate to use (in Hz)
-        # rate = rospy.Rate(1)
-
-        # i = 0
-        # #Use sleep to allow subscriber to set up in a period of time
-        # rate.sleep()
-        # while not rospy.is_shutdown():
-        #     #Write to console
-        #     rospy.loginfo(msg.data)
-        #     #Publish
-        #     pub.publish(msg.data)
-        #     #Wait until it is done
-        #     rate.sleep()
-
     def compute_image_kpts(self, method):
-        # print '#### DEBUG ####'
-        # print self.image_list
-        # Initalize data structures
         if method == 'SIFT':
             sift = cv2.xfeatures2d.SIFT_create(500, 3, 0.1, 5, 1.6)
         if method == 'ORB':
@@ -141,7 +112,7 @@ class QuickmatchNode:
 
     # Convert sets of images to DMatch stucture
     # input: cluster_member, node_id, 
-    def features_to_DMatch(self, data_belongs, cluster_member, dist, im_idx1, im_idx2):
+    def features_to_DMatch(self, data_belongs, data_kpts, cluster_member, dist, im_idx1, im_idx2):
         x = np.take(cluster_member, np.where(data_belongs == im_idx1))
         y = np.take(cluster_member, np.where(data_belongs == im_idx2))
         match = np.intersect1d(x,y)
@@ -170,7 +141,7 @@ class QuickmatchNode:
         print(im_idx1, im_idx2)
         image1 = self.image_list[im_idx1].copy()
         image2 = self.image_list[im_idx2].copy()
-        img3 = cv2.drawMatches(image1, self.kpts, image2, self.kpts, DMatches,1)
+        img3 = cv2.drawMatches(image1, data_kpts, image2, data_kpts, DMatches,1)
 
         cv2.imshow("Image", img3)
         cv2.waitKey(0)
@@ -215,17 +186,10 @@ class QuickmatchNode:
             (values, counts) = np.unique(cluster_member, return_counts=True)
             clusters = counts
         
-        # print '########## DEBUG'
-        # print member.tolist()
-        # print clusters.tolist()
-        # print cluster_member.tolist()
-        # print matchden.tolist()
         return clusters, cluster_member, matchden
 
     def sort_edge_index(self, parent_edge):
         sorted_idx = sorted(range(len(parent_edge)), key=lambda k: parent_edge[k])
-        # print '####### DEBUG'
-        # print sorted_idx
         return sorted_idx
 
     def distance(self, points):
