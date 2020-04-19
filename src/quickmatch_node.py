@@ -16,7 +16,7 @@ import os.path as path
 class QuickmatchNode:
     def __init__(self):
         rospy.init_node('QuickmatchNode')
-        # Collect feature if necessary, not recommended for currrent version
+        # Collect feature if necessary, not recommended for current version
         # self.collected_features = []
         # self.collected_feature_members = []
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
@@ -41,8 +41,6 @@ class QuickmatchNode:
             data_kpts = [cv2.KeyPoint(x, y, size) for x, y, size in data_kpts]
             data_len = len(data)
             data_belongs_len = len(data_belongs)
-            # DEBUG PRINT
-            # print '\ndata_len: %d, data_belongs_len: %d\n' % (data_len, data_belongs_len)
 
             while len(self.label_matrix) == 0:
                 time.sleep(0.1)
@@ -69,14 +67,6 @@ class QuickmatchNode:
                 dmatch = self.features_to_DMatch(data_belongs, data_kpts, cluster_member, D, query_idx, i)
                 print '##### dmatch shape: #####'
                 print len(dmatch)
-            
-            ##### DEBUG PRINT #####
-            print 'NODE ' + str(self.node_id)
-
-            # Plot bar graph of density if desired
-            # y_pos = np.arange(len(density))
-            # plt.bar(y_pos, density, align='center', alpha=0.5)
-            # plt.show()
 
     def main(self):
         sub = rospy.Subscriber('/proc_features', Features, self.callback)

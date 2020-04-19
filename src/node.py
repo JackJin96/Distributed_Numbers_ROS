@@ -106,8 +106,6 @@ class Node:
             
             # Import Data into [dxn] numpy array
             features = self.extract_features(features, [image])
-            # print '### DEBUG'
-            # print features.keypoints
             num_features_extracted += len(features.data)
 
             # Run k-means on the features
@@ -212,12 +210,12 @@ class Node:
         return res, image_nums
     
     def run_and_publish_kmeans(self, data):
-        # kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
-        # center_points = kmeans_output[0]
+        kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
+        center_points = kmeans_output[0]
 
         # the following two lines are for debugging
-        data_mean = np.average(data, 0)
-        center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
+        # data_mean = np.average(data, 0)
+        # center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
 
         center_points_flattened = center_points.flatten()
         msg = Feature()
