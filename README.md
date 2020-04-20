@@ -1,4 +1,4 @@
-# Distributed Random Number Frequency Counter in ROS
+# Distributed Feature Matching in ROS
 
 ## First Version: Distributed Random Number Frequency Counter
 
@@ -17,14 +17,22 @@
 
 ## Third Version: Distrubuted Features
 
-Currently, the node:
+node.py:
 
 - Extract features from images
+  - Run k-means to partition features to each node
   - Keep features of images that are supposed to be handled by itself
   - Publish features of images that are supposed to be handled by other nodes
+- Publish collected features to quickmatch_node for processing
+  - Every second, the node would publish the features collected to the quickmatch_node and empty its collection
+- 
 
-## How to create custom messages in ROS
+quickmatch_node.py:
 
-http://wiki.ros.org/ROS/Tutorials/CreatingMsgAndSrv#Creating_a_msg
-
-http://wiki.ros.org/ROS/Tutorials/CustomMessagePublisherSubscriber%28python%29
+- Upon receiving features in the callback function
+  - Calculate distance matrix
+  - Calculate feature density
+  - Build tree
+  - Sort edges
+  - Break and merge tree
+  - Graph results
