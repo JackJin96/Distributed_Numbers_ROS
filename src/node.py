@@ -69,7 +69,7 @@ class Node:
         self.sub_kmeans = rospy.Subscriber('/labels', Feature, self.kmeans_callback)
         pub = rospy.Publisher('/features', Features, queue_size = self.publish_queue_size)
         self.pub_to_proc = rospy.Publisher('/proc_features', Features, queue_size = self.publish_queue_size)
-        self.pub_labels = rospy.Publisher('/labels', Feature, queue_size = self.publish_queue_size)
+        self.pub_kmeans = rospy.Publisher('/labels', Feature, queue_size = self.publish_queue_size)
 
         # pausing for 1 second before start can ensure the first messages are not lost
         # otherwise the first messages are lost
@@ -221,7 +221,7 @@ class Node:
         msg = Feature()
         msg.data = center_points_flattened
         msg.header.frame_id = str(self.node_id)
-        self.pub_labels.publish(msg)
+        self.pub_kmeans.publish(msg)
 
     # Import car images and run Sift to get dataset
     def extract_features(self, features, image_list):
