@@ -17,7 +17,7 @@
 
 ## Third Version: Distrubuted Features
 
-node.py:
+`node.py`:
 
 - Extract features from images
   - Run k-means to partition features to each node
@@ -25,9 +25,8 @@ node.py:
   - Publish features of images that are supposed to be handled by other nodes
 - Publish collected features to quickmatch_node for processing
   - Every second, the node would publish the features collected to the quickmatch_node and empty its collection
-- 
 
-quickmatch_node.py:
+`quickmatch_node.py`:
 
 - Upon receiving features in the callback function
   - Calculate distance matrix
