@@ -6,4 +6,3 @@ node_ids: {node0: 0, node1: 1, node2: 2, quickmatchnode0: 0, quickmatchnode1: 1,
 num_agents: 3
 publish_queue_size: 100
 publish_rate: 5
-to_ids: {node0: 1, node1: 2, node2: 0}
