@@ -23,7 +23,6 @@ class QuickmatchNode:
         self.label_matrix = np.array([])
         self.threshold = 0.75
         self.image_list = self.get_all_images()
-        # self.kpts = self.compute_image_kpts('SIFT')
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -74,34 +73,7 @@ class QuickmatchNode:
 
         rospy.spin()
 
-    # def compute_image_kpts(self, method):
-    #     if method == 'SIFT':
-    #         sift = cv2.xfeatures2d.SIFT_create(500, 3, 0.1, 5, 1.6)
-    #     if method == 'ORB':
-    #         orb = cv2.ORB_create()
-    #     if method == 'SURF':
-    #         surf = cv2.xfeatures2d.SURF_create(400)
-    #     first = 0
-
-    #     # For each image, extract sift features and organize them into right structures
-    #     for i in range(0, len(self.image_list)):
-    #         gray= cv2.cvtColor(self.image_list[i], cv2.COLOR_BGR2GRAY)
-    #         if method == 'SURF':
-    #             kp, des = surf.detectAndCompute(gray, None)
-    #         if method == 'SIFT':
-    #             kp, des = sift.detectAndCompute(gray, None)
-    #         if method == 'ORB':
-    #             kp, des = orb.detectAndCompute(gray, None)
-    #         # add features to data structures
-    #         if first == 0:
-    #             kpts = kp
-    #             first = 1
-    #         elif first > 0:
-    #             kpts = np.hstack((kpts, kp))
-    #     return kpts
-
     # Convert sets of images to DMatch stucture
-    # input: cluster_member, node_id, 
     def features_to_DMatch(self, data_belongs, data_kpts, cluster_member, dist, im_idx1, im_idx2):
         x = np.take(cluster_member, np.where(data_belongs == im_idx1))
         y = np.take(cluster_member, np.where(data_belongs == im_idx2))
@@ -136,7 +108,6 @@ class QuickmatchNode:
         cv2.imshow("Image", img3)
         cv2.waitKey(0)
         cv2.destroyWindow("Image")
-        # cv2.destroyAllWindows()
         return (DMatches)
 
     def get_all_images(self):
