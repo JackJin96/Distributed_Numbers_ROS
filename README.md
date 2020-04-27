@@ -35,3 +35,5 @@
   - Sort edges
   - Break and merge tree
   - Graph results
+  
+  Click [here](https://docs.google.com/document/d/1KD0Jc04j5ioy37Hnn30I92voBEUOVhij1nFr4NVViA4/edit?usp=sharing) for complete documentation.
