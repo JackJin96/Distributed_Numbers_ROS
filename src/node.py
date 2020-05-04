@@ -76,6 +76,9 @@ class Node:
         # number of lost messages = number of nodes initialized
         time.sleep(1)
 
+        # print '\nTotal runtime for node ' + str(self.node_id) + 'starts at:'
+        # print datetime.datetime.now()
+
         rate = rospy.Rate(self.publish_rate)
 
         #Initialization of Important Constants and Features data structure
@@ -85,7 +88,10 @@ class Node:
         features = Empty_struc()
 
         # Get raw image files based on node_id
-        image_list, image_nums = self.get_images()             # features handled by the current node
+        # image_list, image_nums = self.get_images()             # features handled by the current node
+        image_list, image_nums = self.get_images_from_video('/home/tron_ubuntu2/catkin_ws/src/dist_num/test_video/test_video.mp4')
+        print np.array(image_list).shape
+        print image_nums
 
         num_features_extracted = 0
         first_image = True # flag to compute the k-means partitions
@@ -165,6 +171,7 @@ class Node:
 
         start_time = self.check_time_publish(start_time)
         print '\nNum of features extracted: ' + str(num_features_extracted) + '\n'
+        # print '\nNum of features published: ' + str(num_pub_features) + '\n'
         print 'Node' + str(self.node_id) + ' number of features collected: ' + str(len(self.collected_features))
         print 'Node' + str(self.node_id) + ' number of members collected: ' + str(len(self.collected_feature_members))
 
@@ -208,14 +215,38 @@ class Node:
                     image_nums.append(image_num - 1)
                     res.append(cv2.imread(filepath))
         return res, image_nums
+
+    def get_frame(self, sec):
+        self.vidcap.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
+        hasFrames, image = self.vidcap.read()
+        return hasFrames, image
+
+    def get_images_from_video(self, absolute_video_path):
+        video_image_collection = []
+        video_image_nums = []
+        self.vidcap = cv2.VideoCapture(absolute_video_path) #'test_video.mp4'
+        sec = 0
+        frameRate = 1 # it will capture image in each 1 second
+        count = 0
+        success, image = self.get_frame(sec)
+        while success:
+            if count % 3 == self.node_id:
+                image = cv2.resize(image, None, fx=0.5, fy=0.5)
+                video_image_collection.append(image)
+                video_image_nums.append(count)
+            count = count + 1
+            sec = sec + frameRate
+            sec = round(sec, 2)
+            success, image = self.get_frame(sec)
+        return video_image_collection, video_image_nums
     
     def run_and_publish_kmeans(self, data):
-        kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
-        center_points = kmeans_output[0]
+        # kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
+        # center_points = kmeans_output[0]
 
         # the following two lines are for debugging
-        # data_mean = np.average(data, 0)
-        # center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
+        data_mean = np.average(data, 0)
+        center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
 
         center_points_flattened = center_points.flatten()
         msg = Feature()

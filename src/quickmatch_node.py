@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import cv2
 import glob
+import datetime
 
 from std_msgs.msg import String
 from dist_num.msg import Feature, Features # pylint: disable = import-error
@@ -22,7 +23,8 @@ class QuickmatchNode:
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.label_matrix = np.array([])
         self.threshold = 0.75
-        self.image_list = self.get_all_images()
+        # self.image_list = self.get_all_images()
+        self.image_list, self.image_nums = self.get_images_from_video('/home/tron_ubuntu2/catkin_ws/src/dist_num/test_video/test_video.mp4')
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -43,11 +45,15 @@ class QuickmatchNode:
 
             while len(self.label_matrix) == 0:
                 time.sleep(0.1)
+
+            # print '\nQuickMatch Starts'
+            # start_time = datetime.datetime.now()
+
             # Calculate distance matrix
             D = self.distance(data)
 
             # Calculate Feature Density
-            density, bandwidth = self.calc_density(D, data_belongs, len(data))
+            density, bandwidth = self.calc_density(D, data_belongs, len(self.image_list))
 
             # Build Tree
             parent, parent_edge = self.build_kdtree(density, D, len(D))
@@ -59,10 +65,17 @@ class QuickmatchNode:
                                                                        sorted_idx, bandwidth, self.threshold, 
                                                                        np.shape(density), self.node_id, data_len)
 
+            # print '\nQuickMatch ends for node ' + str(self.node_id) + '. Time used:'
+            # quickmatch_time = datetime.datetime.now() - start_time
+            # print quickmatch_time
+
+            # print '\nTotal runtime for node ' + str(self.node_id) + ' ends at:'
+            # print datetime.datetime.now()
+
             query_idx = 0
-            print('Press Any Key to Show Next Image Set')
+            print 'Press Any Key to Show Next Image Set'
             for i in range(0, len(self.image_list)):
-                print('Image Index Comparison')
+                print 'Image Index Comparison'
                 dmatch = self.features_to_DMatch(data_belongs, data_kpts, cluster_member, D, query_idx, i)
                 print '##### dmatch shape: #####'
                 print len(dmatch)
@@ -119,6 +132,29 @@ class QuickmatchNode:
             for filepath in filepaths:
                 res.append(cv2.imread(filepath))
         return res
+
+    def get_frame(self, sec):
+        self.vidcap.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
+        hasFrames, image = self.vidcap.read()
+        return hasFrames, image
+
+    def get_images_from_video(self, absolute_video_path):
+        video_image_collection = []
+        video_image_nums = []
+        self.vidcap = cv2.VideoCapture(absolute_video_path) #'test_video.mp4'
+        sec = 0
+        frameRate = 1 # it will capture image in each 1 second
+        count = 0
+        success, image = self.get_frame(sec)
+        while success:
+            image = cv2.resize(image, None, fx=0.5, fy=0.5)
+            video_image_collection.append(image)
+            video_image_nums.append(count)
+            count = count + 1
+            sec = sec + frameRate
+            sec = round(sec, 2)
+            success, image = self.get_frame(sec)
+        return video_image_collection, video_image_nums
 
     def break_merge_tree(self, parent, parent_edge, member, sorted_idx, bandwidth, 
                          threshold, size, agent_index=1, max_feats=1):
