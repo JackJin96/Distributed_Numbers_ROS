@@ -6,3 +6,6 @@ node_ids: {node0: 0, node1: 1, node2: 2, quickmatchnode0: 0, quickmatchnode1: 1,
 num_agents: 3
 publish_queue_size: 100
 publish_rate: 5
+data_format: VIDEO
+video_extraction_frame_rate: 1
+absolute_video_path: /home/tron_ubuntu2/catkin_ws/src/dist_num/test_video/test_video.mp4

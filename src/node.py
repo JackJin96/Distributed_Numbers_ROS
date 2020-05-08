@@ -42,6 +42,9 @@ class Node:
         self.publish_queue_size = rospy.get_param('publish_queue_size')
         self.feature_method = rospy.get_param('feature_extration_method')
         self.num_agents = rospy.get_param('num_agents')
+        self.data_format = rospy.get_param('data_format')
+        self.video_extraction_frame_rate = rospy.get_param('video_extraction_frame_rate')
+        self.absolute_video_path = rospy.get_param('absolute_video_path')
         self.label_matrix = []
 
     def kmeans_callback(self, msg):
@@ -71,11 +74,14 @@ class Node:
         self.pub_to_proc = rospy.Publisher('/proc_features', Features, queue_size = self.publish_queue_size)
         self.pub_kmeans = rospy.Publisher('/labels', Feature, queue_size = self.publish_queue_size)
 
-        # pausing for 1 second before start can ensure the first messages are not lost
-        # otherwise the first messages are lost
-        # number of lost messages = number of nodes initialized
+        '''
+        pausing for 1 second before start can ensure the first messages are not lost
+        otherwise the first messages are lost
+        number of lost messages = number of nodes initialized
+        '''
         time.sleep(1)
 
+        # Calculate runtime
         # print '\nTotal runtime for node ' + str(self.node_id) + 'starts at:'
         # print datetime.datetime.now()
 
@@ -88,10 +94,12 @@ class Node:
         features = Empty_struc()
 
         # Get raw image files based on node_id
-        # image_list, image_nums = self.get_images()             # features handled by the current node
-        image_list, image_nums = self.get_images_from_video('/home/tron_ubuntu2/catkin_ws/src/dist_num/test_video/test_video.mp4')
-        print np.array(image_list).shape
-        print image_nums
+        if self.data_format == 'IMAGES':
+            image_list, image_nums = self.get_images()             # features handled by the current node
+        elif self.data_format == 'VIDEO':
+            image_list, image_nums = self.get_images_from_video(self.absolute_video_path)
+        else:
+            raise Exception('Please specify the data format to be either IMAGES or VIDEO in ../config/params.yaml')
 
         num_features_extracted = 0
         first_image = True # flag to compute the k-means partitions
@@ -103,11 +111,13 @@ class Node:
             image = image_list[i]
             image_num = image_nums[i]
 
-            # temporarily store the features to publish
-            # to_node_id: [[features], [feature_nums], [feature_keypoint]]
-            # each feature: array of length 128
-            # each feature number: integer that indicates which image the feature belongs to
-            # each keypoint: list of [float x, float y, float size]
+            '''
+            temporarily store the features to publish
+            to_node_id: [[features], [feature_nums], [feature_keypoint]]
+            each feature: array of length 128
+            each feature number: integer that indicates which image the feature belongs to
+            each keypoint: list of [float x, float y, float size]
+            '''
             publish_store = {}
             
             # Import Data into [dxn] numpy array
@@ -224,13 +234,14 @@ class Node:
     def get_images_from_video(self, absolute_video_path):
         video_image_collection = []
         video_image_nums = []
-        self.vidcap = cv2.VideoCapture(absolute_video_path) #'test_video.mp4'
+        self.vidcap = cv2.VideoCapture(absolute_video_path)
         sec = 0
-        frameRate = 1 # it will capture image in each 1 second
+        # it will capture one image for each <frameRate> seconds
+        frameRate = self.video_extraction_frame_rate
         count = 0
         success, image = self.get_frame(sec)
         while success:
-            if count % 3 == self.node_id:
+            if count % self.num_agents == self.node_id:
                 image = cv2.resize(image, None, fx=0.5, fy=0.5)
                 video_image_collection.append(image)
                 video_image_nums.append(count)
@@ -241,12 +252,15 @@ class Node:
         return video_image_collection, video_image_nums
     
     def run_and_publish_kmeans(self, data):
-        # kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
-        # center_points = kmeans_output[0]
+        kmeans_output = clusteralgos.kmeans2(data, self.num_agents)
+        center_points = kmeans_output[0]
 
-        # the following two lines are for debugging
-        data_mean = np.average(data, 0)
-        center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
+        '''
+        The following two lines are for debugging.
+        They make sure node0 gets all the features.
+        '''
+        # data_mean = np.average(data, 0)
+        # center_points = np.array([data_mean, np.array([-999 for i in range(128)]), np.array([-999 for i in range(128)])])
 
         center_points_flattened = center_points.flatten()
         msg = Feature()
@@ -273,10 +287,6 @@ class Node:
         first = 0
         features.keypoints = np.empty((1,2), dtype = object)
         features.member = np.empty((1), dtype = int)
-
-        # original code to get all images in the folder
-        # image_list = [cv2.imread(item) for i in [sorted(glob.glob(path % ext)) for ext in ["jpg", "gif", "png", "tga"]] for item in i]
-
         features.images = image_list
 
         # For each image, extract sift features and organize them into right structures

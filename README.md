@@ -1,4 +1,4 @@
-# Distributed Feature Matching in ROS
+# Distributed Feature Matching System in ROS
 
 ## First Version: Distributed Random Number Frequency Counter
 
@@ -16,6 +16,8 @@
   - Node2: [20, 20]
 
 ## Third Version: Distrubuted Features
+
+Only the following two python files are used in this final version.
 
 `node.py`:
 
@@ -36,4 +38,6 @@
   - Break and merge tree
   - Graph results
   
-  Click [here](https://docs.google.com/document/d/1KD0Jc04j5ioy37Hnn30I92voBEUOVhij1nFr4NVViA4/edit?usp=sharing) for complete documentation.
+  Click [here](https://docs.google.com/document/d/1KD0Jc04j5ioy37Hnn30I92voBEUOVhij1nFr4NVViA4/edit?usp=sharing) for complete documentation. 
+  
+  Please reach me at hanchong1996@hotmail.com if you are a researcher working on this project and need edit access for the documentation.

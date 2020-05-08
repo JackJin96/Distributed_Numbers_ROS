@@ -23,8 +23,15 @@ class QuickmatchNode:
         self.node_id = rospy.get_param("/node_ids" + rospy.get_name())
         self.label_matrix = np.array([])
         self.threshold = 0.75
-        # self.image_list = self.get_all_images()
-        self.image_list, self.image_nums = self.get_images_from_video('/home/tron_ubuntu2/catkin_ws/src/dist_num/test_video/test_video.mp4')
+        self.data_format = rospy.get_param('data_format')
+        self.video_extraction_frame_rate = rospy.get_param('video_extraction_frame_rate')
+        self.absolute_video_path = rospy.get_param('absolute_video_path')
+        if self.data_format == 'IMAGES':
+            self.image_list = self.get_all_images()
+        elif self.data_format == 'VIDEO':
+            self.image_list, self.image_nums = self.get_images_from_video(self.absolute_video_path)
+        else:
+            raise Exception('Please specify the data format to be either IMAGES or VIDEO in ../config/params.yaml')
 
     def kmeans_callback(self, msg):
         data = msg.data
@@ -46,6 +53,7 @@ class QuickmatchNode:
             while len(self.label_matrix) == 0:
                 time.sleep(0.1)
 
+            # Calculat runtime:
             # print '\nQuickMatch Starts'
             # start_time = datetime.datetime.now()
 
@@ -65,6 +73,7 @@ class QuickmatchNode:
                                                                        sorted_idx, bandwidth, self.threshold, 
                                                                        np.shape(density), self.node_id, data_len)
 
+            # Calculating runtime
             # print '\nQuickMatch ends for node ' + str(self.node_id) + '. Time used:'
             # quickmatch_time = datetime.datetime.now() - start_time
             # print quickmatch_time
@@ -141,9 +150,10 @@ class QuickmatchNode:
     def get_images_from_video(self, absolute_video_path):
         video_image_collection = []
         video_image_nums = []
-        self.vidcap = cv2.VideoCapture(absolute_video_path) #'test_video.mp4'
+        self.vidcap = cv2.VideoCapture(absolute_video_path)
         sec = 0
-        frameRate = 1 # it will capture image in each 1 second
+        # it will capture one image for each <frameRate> seconds
+        frameRate = self.video_extraction_frame_rate
         count = 0
         success, image = self.get_frame(sec)
         while success:
@@ -158,8 +168,6 @@ class QuickmatchNode:
 
     def break_merge_tree(self, parent, parent_edge, member, sorted_idx, bandwidth, 
                          threshold, size, agent_index=1, max_feats=1):
-        # offset = np.multiply(agent_index, max_feats)
-        # cluster_member = np.add(np.arange(size[0]), offset)
 
         cluster_member = np.arange(size[0])
         matchden = bandwidth
