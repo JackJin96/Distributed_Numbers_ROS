@@ -1,5 +1,7 @@
 # Distributed Feature Matching System in ROS
 
+This is a research project completed by [Hanchong Jin](https://www.linkedin.com/in/jack-h-jin/) during Spring 2020 semester under professor [Roberto Tron](https://www.bu.edu/eng/profile/roberto-tron/) and with the help of PhD student [Zachary Serlin](http://sites.bu.edu/robotics/people/zachary-serlin/) at Boston University.
+
 ## First Version: Distributed Random Number Frequency Counter
 
 - Random Numbers from 1 to 10
